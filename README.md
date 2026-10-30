@@ -12,26 +12,51 @@ Qaroo India is a full-stack CMS-driven web application built on the existing Rea
 
 ## Folder Structure
 
+A monorepo with two independently deployable halves. Neither imports source
+from the other at runtime, so each can be built from its own directory — which
+is what lets them deploy as separate Vercel projects.
+
 ```
 qaroo-react-app/
-├── src/                    # React frontend (public site + admin)
-│   ├── admin/              # Admin dashboard (routes, layout, pages, context, css)
-│   ├── api/                # Centralized API client + per-module API wrappers
-│   ├── pages/              # Public pages (now fetch from the backend)
-│   └── components/         # Existing React Bits components / animations
-├── backend/                # Express + MongoDB API
-│   ├── config/             # DB connection
-│   ├── controllers/        # auth, admin, mou, page, csr, learning, contact
-│   ├── middleware/         # auth, admin, permission, error
-│   ├── models/             # Admin, MOU, PageContent, CSRProject, LearningProgram, ContactMessage
-│   ├── routes/             # auth, admin, mou, page, csr, learning, contact
-│   ├── services/           # email, image (Cloudinary)
-│   ├── utils/              # generateToken, permissions (ALL_PERMISSIONS)
-│   ├── data/seedData.js    # All static content migrated from the existing site
-│   ├── seed/               # Seed scripts (npm run seed)
-│   └── test/api.test.js    # End-to-end API test suite
-└── vite.config.js          # Dev proxy: /api -> http://localhost:5000
+├── frontend/                 # React 18 + Vite (public site + admin panel)
+│   ├── src/
+│   │   ├── admin/            # Admin dashboard (routes, layout, pages, context, css)
+│   │   ├── api/              # Centralized API client + per-module wrappers
+│   │   ├── components/       # Shared components and animations
+│   │   ├── data/             # Static content and the canonical SITE_URL
+│   │   └── pages/            # Public pages (fetch from the backend)
+│   ├── public/               # Served as the site root: brochures, logos, robots, sitemap
+│   ├── tools/                # build-sitemap.mjs
+│   ├── index.html            # SEO tags, JSON-LD
+│   ├── vite.config.js        # Dev proxy: /api -> http://localhost:5000
+│   ├── vercel.json           # SPA rewrite (Vercel: Root Directory = frontend)
+│   └── amplify.yml           # Build spec if deploying to AWS Amplify instead
+│
+├── backend/                  # Express 5 + Mongoose
+│   ├── app.js                # Builds the app; no side effects, no listen()
+│   ├── server.js             # Long-running entry (local, Render, EC2)
+│   ├── api/[...path].js      # Serverless entry (Vercel: Root Directory = backend)
+│   ├── config/               # DB connection, env validation, SITE_URL
+│   ├── controllers/          # auth, admin, mou, page, csr, learning, careers, contact
+│   ├── middleware/           # auth, permissions, errors, rate limiters + Mongo store
+│   ├── models/               # Admin, MOU, PageContent, CSRProject, LearningProgram,
+│   │                         #   JobPosting, JobApplication, ResumeFile, ContactMessage
+│   ├── routes/               # One router per module
+│   ├── services/             # email, image (Cloudinary), resume storage
+│   ├── data/                 # seedData.js, categories.js (canonical, mirrored in frontend)
+│   ├── seed/                 # Idempotent seed scripts (npm run seed)
+│   ├── tools/                # preflight, check-mail, rotate-credential, migrate-to-atlas
+│   └── test/                 # integration.test.js (46 tests, isolated DB, no server needed)
+│
+├── deploy/                   # nginx, PM2 and Amplify rewrite configs for self-hosting
+├── docs/                     # DEPLOYMENT.md, WORKFLOW.md, brochure sources
+├── setup.sh                  # One-shot server bootstrap
+└── AGENTS.md                 # Repository conventions
 ```
+
+Run commands from the half you mean: `npm run dev` / `npm run build` /
+`npm run lint` in `frontend/`, and `npm start` / `npm run seed` / `npm test` /
+`npm run lint` in `backend/`.
 
 ## Prerequisites
 
@@ -76,6 +101,7 @@ Server runs at `http://localhost:5000`.
 ### 4. Frontend
 
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
@@ -142,5 +168,14 @@ Super Admin bypasses all permission checks. Granular permissions are defined in 
 
 ## Verification
 
-- **Frontend build:** `npm run build` (verifies the whole app including admin compiles)
-- **Backend API tests:** `node test/api.test.js` (runs against a running server on `localhost:5000`)
+- **Frontend build:** `cd frontend && npm run build` (verifies the whole app including admin compiles)
+- **Frontend lint:** `cd frontend && npm run lint`
+- **Backend tests:** `cd backend && npm test` — 46 integration tests against an
+  isolated database. Needs no running server, and refuses to run unless the
+  database name contains `test`.
+- **Backend lint:** `cd backend && npm run lint`
+- **Pre-deployment check:** `cd backend && NODE_ENV=production node tools/preflight.mjs`
+  — verifies database reachability, SMTP auth, CORS origins, cookie scope,
+  `frontend/dist` freshness and the serverless constraints.
+- **Live API smoke test:** `cd backend && node test/api.test.js` (runs against a
+  server already listening on `localhost:5000`)

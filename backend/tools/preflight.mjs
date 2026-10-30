@@ -23,6 +23,9 @@ import 'dotenv/config';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
+// The frontend lives in its own directory alongside backend/, so dist/, src/,
+// public/ and index.html are all under here rather than at the repo root.
+const FRONTEND = path.join(ROOT, 'frontend');
 
 let fail = 0;
 let warn = 0;
@@ -176,7 +179,7 @@ section('secrets');
 {
   // A secret that is also sitting in a tracked file is already public.
   const tracked = [];
-  for (const rel of ['.env.example', 'backend/.env.example', 'backend/.env.production.example']) {
+  for (const rel of ['frontend/.env.example', 'backend/.env.example', 'backend/.env.production.example']) {
     const p = path.join(ROOT, rel);
     if (!fs.existsSync(p)) continue;
     const body = fs.readFileSync(p, 'utf8');
@@ -327,10 +330,10 @@ if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PAS
 section('build and assets');
 
 {
-  const dist = path.join(ROOT, 'dist');
+  const dist = path.join(FRONTEND, 'dist');
   const index = path.join(dist, 'index.html');
   if (!fs.existsSync(index)) {
-    bad('dist/index.html is missing - run `npm run build` in the project root');
+    bad('frontend/dist/index.html is missing - run `npm run build` in frontend/');
   } else {
     const built = fs.statSync(index).mtimeMs;
     // A bundle older than the sources it was built from is the classic
@@ -344,10 +347,10 @@ section('build and assets');
         else if (/\.(jsx?|css|html)$/.test(e.name)) newest = Math.max(newest, fs.statSync(p).mtimeMs);
       }
     };
-    walk(path.join(ROOT, 'src'));
-    newest = Math.max(newest, fs.statSync(path.join(ROOT, 'index.html')).mtimeMs);
-    if (newest > built) bad('dist/ is older than src/ - rebuild before deploying');
-    else pass('dist/ is newer than the sources it was built from');
+    walk(path.join(FRONTEND, 'src'));
+    newest = Math.max(newest, fs.statSync(path.join(FRONTEND, 'index.html')).mtimeMs);
+    if (newest > built) bad('frontend/dist is older than frontend/src - rebuild before deploying');
+    else pass('frontend/dist is newer than the sources it was built from');
 
     const body = fs.readFileSync(index, 'utf8');
     const stale = body.match(/https:\/\/www\.qarootech\.in/);
@@ -360,7 +363,7 @@ section('build and assets');
   // Every brochure/logo path the seeds publish must exist, or a visitor gets a
   // 404 from a link the CMS says is live.
   const { assetExists } = await import('../seed/assets.js');
-  const pub = path.join(ROOT, 'public');
+  const pub = path.join(FRONTEND, 'public');
   const missing = [];
   for (const rel of ['robots.txt', 'sitemap.xml', 'logos/qaroo-logo.png']) {
     if (!assetExists('/' + rel)) missing.push(rel);

@@ -819,3 +819,68 @@ test('a resume can be stored in the database and downloaded back byte-for-byte',
     else process.env.RESUME_STORE = prev;
   }
 });
+
+// ----------------------------------- the two sides must not drift apart ------
+
+// Some data is deliberately duplicated so that each side deploys standalone:
+// the backend cannot import frontend source at runtime, because a Vercel
+// project with Root Directory "backend" never uploads anything above it. These
+// tests make the duplication safe - a change to one copy and not the other
+// fails here rather than appearing as a mismatched dropdown or a wrong
+// canonical URL in production.
+
+test('the MOU and CSR category lists match the frontend copies', async () => {
+  const be = await import('../data/categories.js');
+  const feMou = await import('../../frontend/src/data/mouCategories.js');
+  const feCsr = await import('../../frontend/src/data/csrCategories.js');
+
+  assert.deepEqual(be.MOU_CATEGORIES, feMou.MOU_CATEGORIES,
+    'backend/data/categories.js and frontend/src/data/mouCategories.js have diverged');
+  assert.deepEqual(be.CSR_CATEGORIES, feCsr.CSR_CATEGORIES,
+    'backend/data/categories.js and frontend/src/data/csrCategories.js have diverged');
+});
+
+test('the site origin matches on both sides', async () => {
+  const be = await import('../config/site.js');
+  const fe = await import('../../frontend/src/data/site.js');
+  // The backend allows an override for a staging deploy, so compare the
+  // default rather than whatever this shell happens to have set.
+  const beDefault = process.env.SITE_URL ? process.env.SITE_URL.replace(/\/+$/, '') : be.SITE_URL;
+  assert.equal(beDefault, fe.SITE_URL,
+    'backend/config/site.js and frontend/src/data/site.js disagree on the site origin');
+});
+
+test('the backend no longer imports frontend source at runtime', async () => {
+  // The seeds and tools may reach into frontend/ - they run from a full
+  // checkout. Anything in the request path must not, or the serverless bundle
+  // is incomplete. This walks the actual module graph of app.js.
+  const fsp = await import('node:fs/promises');
+  const nodePath = await import('node:path');
+  const here = nodePath.dirname(new URL(import.meta.url).pathname.replace(/^\//, ''));
+  const backendRoot = nodePath.resolve(here, '..');
+
+  const seen = new Set();
+  const offenders = [];
+
+  const visit = async (file) => {
+    const resolved = nodePath.resolve(file);
+    if (seen.has(resolved)) return;
+    seen.add(resolved);
+    let body;
+    try { body = await fsp.readFile(resolved, 'utf8'); } catch { return; }
+
+    for (const m of body.matchAll(/from\s+['"](\.[^'"]+)['"]/g)) {
+      const target = nodePath.resolve(nodePath.dirname(resolved), m[1]);
+      if (!target.startsWith(backendRoot)) {
+        offenders.push(`${nodePath.relative(backendRoot, resolved)} -> ${m[1]}`);
+        continue;
+      }
+      await visit(target);
+    }
+  };
+
+  await visit(nodePath.join(backendRoot, 'app.js'));
+
+  assert.deepEqual(offenders, [],
+    `these files are reachable from app.js but import outside backend/:\n  ${offenders.join('\n  ')}`);
+});

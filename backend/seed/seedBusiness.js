@@ -1,5 +1,5 @@
 import BusinessSolution from '../models/BusinessSolution.js';
-import { BUSINESS_SOLUTIONS } from '../../src/data/businessSolutions.js';
+import { BUSINESS_SOLUTIONS } from '../../frontend/src/data/businessSolutions.js';
 import { brochureFor } from './assets.js';
 import { SITE_URL } from '../config/site.js';
 

@@ -28,16 +28,16 @@ resolves and the one the mail is on. Your social handles are `qarootech`, so if
 the intended public domain is really `qarootech.in`, you must first point its
 DNS at a host — then change it in exactly three places:
 
-1. `src/data/site.js` — `SITE_URL` (frontend canonicals, og:url, sitemap)
+1. `frontend/src/data/site.js` — `SITE_URL` (frontend canonicals, og:url, sitemap)
 2. `backend/config/site.js` — `SITE_URL` (canonicals written onto records)
-3. `index.html` and `public/robots.txt` — static literals
+3. `frontend/index.html` and `frontend/public/robots.txt` — static literals
 
 then re-run:
 
 ```bash
-node tools/build-sitemap.mjs                                   # regenerate the 34 URLs
-cd backend && node tools/retarget-domain.mjs --apply           # rewrite stored canonicalUrl
-cd .. && npm run build
+cd frontend && node tools/build-sitemap.mjs          # regenerate the 34 URLs
+cd ../backend && node tools/retarget-domain.mjs --apply   # rewrite stored canonicalUrl
+cd ../frontend && npm run build
 ```
 
 `retarget-domain.mjs` is idempotent and reversible — swap `--from`/`--to` to go
@@ -48,14 +48,14 @@ back.
 ## 2. Hosting shape
 
 **Chosen: Shape E — both on Vercel.** Jump to that section. The others are kept
-for reference, and their config files are inert when unused: `public/.htaccess`
+for reference, and their config files are inert when unused: `frontend/public/.htaccess`
 does nothing on Vercel, and `deploy/` only matters on EC2.
 
 ### Shape A — split hosting
 
 Static site on GoDaddy cPanel, API on a Node host, both under `qaroo.in`.
 
-- Uses `public/.htaccess` (already correct). `vercel.json` is ignored.
+- Uses `frontend/public/.htaccess` (already correct). `vercel.json` is ignored.
 - `api.qaroo.in` and `www.qaroo.in` share a registrable domain, so they are
   **same-site**: cookies work with the default `SameSite=Lax` and you do
   **not** set `COOKIE_SAMESITE`.
@@ -64,14 +64,14 @@ Static site on GoDaddy cPanel, API on a Node host, both under `qaroo.in`.
 
 ### Shape B — single origin
 
-One Node host serves both the API and `dist/`. Set `SERVE_STATIC=true` and point
+One Node host serves both the API and `frontend/dist`. Set `SERVE_STATIC=true` and point
 `qaroo.in` at it. No CORS and no cookie subtleties at all — the simplest and
 tightest option if you are willing to move off GoDaddy hosting for the website
 (the mailbox can stay).
 
 ### Shape C — Vercel frontend
 
-Uses `vercel.json`; delete `public/.htaccess` so it cannot confuse anyone. If
+Uses `vercel.json`; delete `frontend/public/.htaccess` so it cannot confuse anyone. If
 the frontend lands on `*.vercel.app` rather than a `qaroo.in` subdomain it is
 **cross-site**, and you must set `COOKIE_SAMESITE=none` or admin login will
 appear to succeed and immediately log out. Attaching `www.qaroo.in` to Vercel
@@ -83,8 +83,8 @@ Artifacts for this are committed and inert until you use them:
 
 | File | Purpose |
 | --- | --- |
-| `amplify.yml` | Amplify build spec. **App root must be left empty** — the frontend is at the repo root, there is no `client/` folder. It fails the build if `VITE_API_BASE_URL` is unset or missing the `/api` suffix. |
-| `deploy/amplify-rewrites.json` | The SPA fallback. `public/.htaccess` is an Apache file and does **nothing** on Amplify, so without this rule a refresh on `/learning-programs/<slug>` returns Amplify's 404. |
+| `frontend/amplify.yml` | Amplify build spec. Set the app root to **`frontend`**. It fails the build if `VITE_API_BASE_URL` is unset or missing the `/api` suffix. |
+| `deploy/amplify-rewrites.json` | The SPA fallback. `frontend/public/.htaccess` is an Apache file and does **nothing** on Amplify, so without this rule a refresh on `/learning-programs/<slug>` returns Amplify's 404. |
 | `deploy/nginx-api.qaroo.in.conf` | Reverse proxy to `127.0.0.1:5000`, with certbot notes. |
 | `deploy/ecosystem.config.cjs` | PM2 definition, bound to loopback. |
 
@@ -102,8 +102,15 @@ Specific to this shape:
 
 | Project | Root Directory | Serves |
 | --- | --- | --- |
-| `qaroo-web` | *(empty — repo root)* | the SPA from `dist/`, via the root `vercel.json` rewrite |
+| `qaroo-web` | `frontend` | the SPA from `frontend/dist`, via `frontend/vercel.json` |
 | `qaroo-api` | `backend` | `backend/api/[...path].js` as a serverless function |
+
+Both Root Directories are set, and **neither project needs Vercel's "Include
+source files outside of the Root Directory" option** — each side is
+self-contained. That was not true before: the API imported the MOU and CSR
+category lists from the frontend's `src/data/`, so a backend-only upload would
+not have resolved them. The backend now owns its copy in
+`backend/data/categories.js`, and a test asserts the two stay identical.
 
 Set `qaroo-api`'s domain to **`api.qaroo.in`** and `qaroo-web`'s to
 `www.qaroo.in` + `qaroo.in`. Same registrable domain means **same-site**, so
@@ -168,7 +175,7 @@ Hobby.
 
 ### Which to pick
 
-Shape A is what `dist/` and the rest of this document are built for. Shape D is a bigger setup — you own patching, nginx, TLS renewal and PM2 — but gives you a pinnable egress IP for Atlas and somewhere to run cron. Shape B is the simplest and tightest of all if you are willing to move the website off GoDaddy hosting (the mailbox can stay).
+Shape E is what the repository is configured for, and `frontend/dist` is built against it. Shape D is a bigger setup — you own patching, nginx, TLS renewal and PM2 — but gives you a pinnable egress IP for Atlas and somewhere to run cron. Shape B is the simplest and tightest of all if you are willing to move the website off GoDaddy hosting (the mailbox can stay).
 
 **Sections 3 and 4 below are written for Shape A**, since they cover the
 backend and frontend steps generically. Where Shape E differs — environment
@@ -268,7 +275,7 @@ change `backend/data/seedData.js` and re-seed deliberately.
 
 ## 4. Frontend
 
-Already configured and built. `.env.production` (gitignored) holds:
+Already configured and built. `frontend/.env.production` (gitignored) holds:
 
 ```
 VITE_API_BASE_URL=https://api.qaroo.in/api
@@ -284,9 +291,9 @@ VITE_API_BASE_URL=https://api.qaroo.in/api
 VITE_API_BASE_URL=https://api.qaroo.in
 ```
 
-To rebuild later, `npm run build` picks that file up automatically.
+To rebuild later, `npm run build` from `frontend/` picks that file up automatically.
 
-Upload the **contents** of `dist/` to `public_html/`, including the dotfile
+Upload the **contents** of `frontend/dist/` to `public_html/`, including the dotfile
 `.htaccess` — SPA deep links such as `/learning-programs/full-stack-development`
 return 404 without it. Many FTP clients hide dotfiles by default.
 

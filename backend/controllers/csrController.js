@@ -2,7 +2,7 @@ import CSRProject from '../models/CSRProject.js';
 import { pageOf } from '../utils/pagination.js';
 import { hasPermission } from '../utils/permissions.js';
 import { uploadImage } from '../services/imageService.js';
-import { CSR_CATEGORIES } from '../../src/data/csrCategories.js';
+import { CSR_CATEGORIES } from '../data/categories.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
 const normalizeProject = (b) => ({

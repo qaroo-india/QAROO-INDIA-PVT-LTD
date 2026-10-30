@@ -2,7 +2,7 @@ import MOU from '../models/MOU.js';
 import { pageOf } from '../utils/pagination.js';
 import { hasPermission } from '../utils/permissions.js';
 import { uploadImage } from '../services/imageService.js';
-import { MOU_CATEGORIES } from '../../src/data/mouCategories.js';
+import { MOU_CATEGORIES } from '../data/categories.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
 const normalizeTag = (tag) => {

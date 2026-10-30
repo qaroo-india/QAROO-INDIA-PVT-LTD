@@ -1,5 +1,5 @@
 import LearningProgram from '../models/LearningProgram.js';
-import { PROGRAMS } from '../../src/data/programs.js';
+import { PROGRAMS } from '../../frontend/src/data/programs.js';
 import { brochureFor } from './assets.js';
 import { SITE_URL } from '../config/site.js';
 

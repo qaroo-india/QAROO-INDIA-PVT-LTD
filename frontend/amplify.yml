@@ -1,9 +1,12 @@
 # AWS Amplify build spec for the Qaroo India frontend.
 #
-# The frontend lives at the REPOSITORY ROOT, not in a client/ subdirectory, and
-# the backend is a sibling folder (backend/) that Amplify does not build. So the
-# Amplify app's "app root" / monorepo base directory must be left empty - do not
-# set it to "client", there is no such folder.
+# The repository is a monorepo: frontend/ and backend/ are siblings. Set the
+# Amplify app's "app root" / monorepo base directory to:
+#
+#     frontend
+#
+# Not "client" - there is no such folder - and not empty, which was correct
+# only before the frontend moved out of the repository root.
 #
 # Amplify injects environment variables at build time, so VITE_API_BASE_URL must
 # be set in the Amplify console (App settings -> Environment variables), not

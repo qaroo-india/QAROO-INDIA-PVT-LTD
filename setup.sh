@@ -6,7 +6,7 @@
 # What it does:
 #   1. Ensures backend/.env exists (auto-generates JWT_SECRET if blank)
 #   2. Refuses to continue until real values replace the placeholders
-#   3. Installs + builds the React frontend (dist/)
+#   3. Installs + builds the React frontend (frontend/dist/)
 #   4. Installs backend prod deps and seeds/verifies the super admin
 #   5. Starts the backend under PM2 and enables PM2 on boot
 #
@@ -16,6 +16,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$REPO_DIR/backend"
+FRONTEND_DIR="$REPO_DIR/frontend"
 ENV_FILE="$BACKEND_DIR/.env"
 TEMPLATE="$BACKEND_DIR/.env.production.example"
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -23,7 +24,7 @@ say()  { printf "${GREEN}[setup]${NC} %s\n" "$*"; }
 warn() { printf "${YELLOW}[setup]${NC} %s\n" "$*"; }
 die()  { printf "${RED}[setup]${NC} %s\n" "$*"; exit 1; }
 
-cd "$REPO_DIR"
+cd "$FRONTEND_DIR"
 
 # --- 1. Create backend/.env if missing -------------------------------------
 if [ ! -f "$ENV_FILE" ]; then
@@ -58,7 +59,7 @@ say "backend/.env looks complete."
 # --- 4. Frontend: deps + build ---------------------------------------------
 say "Installing frontend dependencies (this includes build tooling)..."
 npm ci
-say "Building the React app into dist/..."
+say "Building the React app into frontend/dist/..."
 npm run build
 
 # --- 5. Backend: prod deps + seed admin -------------------------------------

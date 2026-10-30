@@ -109,7 +109,7 @@ app.use('/api/client-errors', clientErrorRoutes);
 // frontend is NOT hosted separately - never on serverless, where the frontend
 // is served by the platform's CDN and dist/ is not in the function bundle.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const distDir = path.resolve(__dirname, '../dist');
+const distDir = path.resolve(__dirname, '../frontend/dist');
 if (process.env.SERVE_STATIC === 'true' && fs.existsSync(distDir)) {
   app.use(express.static(distDir));
   app.use((req, res, next) => {

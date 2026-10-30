@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** Repo-root `public/`, which is what gets deployed as the site root. */
-export const PUBLIC_DIR = path.resolve(HERE, '../../public');
+export const PUBLIC_DIR = path.resolve(HERE, '../../frontend/public');
 
 /** True when `/foo/bar.pdf` exists under public/. */
 export function assetExists(sitePath) {

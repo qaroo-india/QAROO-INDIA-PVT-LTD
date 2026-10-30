@@ -1,6 +1,6 @@
 import JobPosting from '../models/JobPosting.js';
 import PageContent from '../models/PageContent.js';
-import { JOB_POSTINGS, CAREERS_PAGE } from '../../src/data/careers.js';
+import { JOB_POSTINGS, CAREERS_PAGE } from '../../frontend/src/data/careers.js';
 import { SITE_URL } from '../config/site.js';
 
 // Seeds/updates job postings and the shared careers page copy from the content

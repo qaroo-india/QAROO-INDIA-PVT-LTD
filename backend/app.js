@@ -77,7 +77,13 @@ app.use(
 );
 
 app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+// No urlencoded parser, deliberately. Nothing sends form-encoded bodies - the
+// client posts JSON everywhere - and accepting them weakens CSRF protection:
+// application/x-www-form-urlencoded is a CORS "simple request", so a form on
+// another site can POST here with no preflight to block it. A JSON body forces
+// a preflight, which the origin allowlist refuses. That matters most if
+// COOKIE_SAMESITE is ever set to "none" for a cross-site deployment, which
+// removes SameSite as a defence and would otherwise leave nothing behind it.
 app.use(cookieParser());
 
 // Liveness. Above the limiters so a monitor cannot be rate-limited out, and so

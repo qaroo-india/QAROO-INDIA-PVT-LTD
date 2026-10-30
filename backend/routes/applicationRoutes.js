@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { sharedStore } from '../middleware/mongoRateLimitStore.js';
 import {
   submitApplication,
   listApplications,
@@ -17,6 +18,7 @@ const router = Router();
 // Public submission, rate-limited like the contact form. Applications carry a
 // file upload, so the window is a little tighter than contact's 10.
 const submitLimiter = rateLimit({
+  store: sharedStore('application-submit'),
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,

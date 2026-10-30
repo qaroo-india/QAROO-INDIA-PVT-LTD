@@ -47,11 +47,11 @@ back.
 
 ## 2. Hosting shape
 
-**Chosen: Shape A.** The repo is configured for it and `dist/` is already built
-against it. The other two sections are kept for reference; `vercel.json` is
-inert under Shape A and can be deleted whenever you want.
+**Chosen: Shape E — both on Vercel.** Jump to that section. The others are kept
+for reference, and their config files are inert when unused: `public/.htaccess`
+does nothing on Vercel, and `deploy/` only matters on EC2.
 
-### Shape A — split hosting (chosen)
+### Shape A — split hosting
 
 Static site on GoDaddy cPanel, API on a Node host, both under `qaroo.in`.
 
@@ -95,11 +95,80 @@ Specific to this shape:
 - **Stay on one PM2 instance** unless you move the rate-limit store to Redis or Mongo first. `express-rate-limit`'s default store is per-process, so N workers each allow the full quota and every limit becomes N times looser.
 - **Atlas:** give the instance an Elastic IP and allowlist that `/32`. This is better than the `0.0.0.0/0` that Render/Railway force, and your checklist is right to prefer it.
 
+### Shape E — both on Vercel (chosen)
+
+**Two Vercel projects from the same repository.** The dependencies live in
+`backend/package.json`, not the root, so one project cannot build both.
+
+| Project | Root Directory | Serves |
+| --- | --- | --- |
+| `qaroo-web` | *(empty — repo root)* | the SPA from `dist/`, via the root `vercel.json` rewrite |
+| `qaroo-api` | `backend` | `backend/api/[...path].js` as a serverless function |
+
+Set `qaroo-api`'s domain to **`api.qaroo.in`** and `qaroo-web`'s to
+`www.qaroo.in` + `qaroo.in`. Same registrable domain means **same-site**, so
+cookies work on the default `SameSite=Lax` and you do *not* set
+`COOKIE_SAMESITE`. If you instead leave the API on `*.vercel.app` while the site
+is on `qaroo.in`, that is cross-site and you **must** set `COOKIE_SAMESITE=none`
+or admin login will appear to work and immediately sign out.
+
+Environment variables:
+
+```
+# qaroo-api project
+NODE_ENV=production
+MONGODB_URI=...            # Atlas; allowlist 0.0.0.0/0, serverless has no fixed egress
+JWT_SECRET=...
+CLIENT_URL=https://www.qaroo.in,https://qaroo.in
+RATE_LIMIT_STORE=mongo     # not strictly needed - VERCEL=1 implies it - but explicit
+CLOUDINARY_CLOUD_NAME=...  # MANDATORY here, see below
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+EMAIL_HOST=... EMAIL_PORT=... EMAIL_SECURE=... EMAIL_USER=... EMAIL_PASSWORD=... EMAIL_FROM=...
+ADMIN_EMAIL=support@qaroo.in
+# Do NOT set SERVE_STATIC or HOST - neither applies.
+
+# qaroo-web project
+VITE_API_BASE_URL=https://api.qaroo.in/api
+```
+
+Four things serverless changes, all handled in code but worth knowing:
+
+1. **Rate limits need shared state.** `express-rate-limit`'s default store
+   counts per process, so every cold start began with an empty tally and the
+   login, forgot-password and OTP-send limits were effectively unenforced.
+   `middleware/mongoRateLimitStore.js` counts in MongoDB instead, with a TTL
+   index for cleanup. It selects itself automatically when `VERCEL` is set.
+   *(The per-code OTP attempt counter was already on the admin document, so
+   that one survived regardless.)*
+2. **Cloudinary is mandatory, not advisory.** There is no writable persistent
+   disk — not even `/tmp` beyond the instance's life — so without it resume
+   uploads fail outright rather than being merely lossy. `ALLOW_EPHEMERAL_UPLOADS`
+   does **not** help here, and `preflight` says so.
+3. **Vercel caps a function request body at 4.5 MB.** Resumes arrive
+   base64-encoded, which inflates a file by 4/3, so the limit drops to **3 MB**
+   automatically when `VERCEL` is set. A 5 MB file would be refused at the edge
+   with an opaque 413 before any of this code ran.
+4. **The connection is cached per instance** (`connectLazy`) with
+   `maxPoolSize: 5`. Connecting per request, or keeping the default pool, would
+   exhaust the Atlas connection limit once the platform runs several instances.
+
+Also: `api/[...path].js` is a **catch-all filename on purpose**. A plain
+`api/index.js` plus a `vercel.json` rewrite does not work here, because a
+rewrite replaces the path the function receives — Express would see `/api` for
+every request and nothing would route.
+
+`maxDuration: 30` in `backend/vercel.json` needs a paid plan; lower it to 10 on
+Hobby.
+
 ### Which to pick
 
 Shape A is what `dist/` and the rest of this document are built for. Shape D is a bigger setup — you own patching, nginx, TLS renewal and PM2 — but gives you a pinnable egress IP for Atlas and somewhere to run cron. Shape B is the simplest and tightest of all if you are willing to move the website off GoDaddy hosting (the mailbox can stay).
 
-**The rest of this document assumes Shape A**, and notes where Shape D differs.
+**Sections 3 and 4 below are written for Shape A**, since they cover the
+backend and frontend steps generically. Where Shape E differs — environment
+variables, Cloudinary being mandatory, the smaller upload cap — the Shape E
+section above is authoritative.
 
 ---
 

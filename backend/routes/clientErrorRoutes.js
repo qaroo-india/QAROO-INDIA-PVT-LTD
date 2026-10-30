@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { sharedStore } from '../middleware/mongoRateLimitStore.js';
 import { reportClientError, listClientErrors } from '../controllers/clientErrorController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { requireVerifiedApproved, requireSuperAdmin } from '../middleware/adminMiddleware.js';
@@ -11,6 +12,7 @@ const router = Router();
 // rows in that window. A genuine crash loop reports a handful of times, not
 // dozens, so 30 is generous for real use and blunts scripted flooding.
 const reportLimiter = rateLimit({
+  store: sharedStore('error-report'),
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,

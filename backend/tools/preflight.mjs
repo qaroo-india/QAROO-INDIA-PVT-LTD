@@ -34,6 +34,8 @@ const skip = (m) => console.log(`  SKIP  ${m}`);
 const section = (t) => console.log(`\n${t}`);
 
 const isProd = process.env.NODE_ENV === 'production';
+// Serverless reports its own, stricter version of several checks below.
+const isServerless = Boolean(process.env.VERCEL) || process.env.TARGET === 'serverless';
 
 // ---------------------------------------------------------- environment ----
 section('environment');
@@ -61,7 +63,9 @@ else bad(`NODE_ENV is "${process.env.NODE_ENV || '(unset)'}" - set it to product
     && process.env.CLOUDINARY_API_SECRET;
   const accepted = process.env.ALLOW_EPHEMERAL_UPLOADS === 'true';
 
-  if (configured) {
+  if (isServerless) {
+    skip('Cloudinary reported under the serverless checks below, where it is mandatory');
+  } else if (configured) {
     pass('Cloudinary is configured, so uploads survive a redeploy');
   } else if (!isProd) {
     skip('Cloudinary not configured (fine outside production - uploads go to local disk)');
@@ -77,12 +81,49 @@ else bad(`NODE_ENV is "${process.env.NODE_ENV || '(unset)'}" - set it to product
 }
 
 {
+  // Serverless changes four assumptions at once, and each failure mode is
+  // obscure if you are not expecting it.
+  if (!isServerless) {
+    skip('not a serverless target (set VERCEL=1 or TARGET=serverless to check those)');
+  } else {
+    const { needsSharedStore } = await import('../middleware/mongoRateLimitStore.js');
+    if (needsSharedStore()) {
+      pass('rate limiters use the shared MongoDB store, so limits hold across instances');
+    } else {
+      bad('rate limiters would use the per-process MemoryStore. Set RATE_LIMIT_STORE=mongo, or the login and OTP limits are per-instance and effectively unenforced.');
+    }
+
+    const cloud = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY
+      && process.env.CLOUDINARY_API_SECRET;
+    if (cloud) pass('Cloudinary is configured, which serverless requires for uploads');
+    else bad('serverless has no writable persistent disk, so resume uploads cannot work at all without Cloudinary. ALLOW_EPHEMERAL_UPLOADS does not help here.');
+
+    const { MAX_RESUME_BYTES } = await import('../services/resumeStorage.js');
+    const encoded = Math.ceil((MAX_RESUME_BYTES * 4) / 3);
+    const cap = 4.5 * 1024 * 1024;
+    if (encoded < cap) {
+      pass(`resume cap ${(MAX_RESUME_BYTES / 1048576).toFixed(1)}MB encodes to ${(encoded / 1048576).toFixed(1)}MB, under the 4.5MB function body limit`);
+    } else {
+      bad(`resume cap ${(MAX_RESUME_BYTES / 1048576).toFixed(1)}MB base64-encodes to ${(encoded / 1048576).toFixed(1)}MB, over Vercel's 4.5MB request body limit - the platform rejects it before the app sees it. Lower MAX_RESUME_BYTES.`);
+    }
+
+    if (process.env.SERVE_STATIC === 'true') {
+      bad('SERVE_STATIC=true on serverless: dist/ is not in the function bundle and the frontend is served by the CDN. Unset it.');
+    } else {
+      pass('SERVE_STATIC is off, which is correct when the CDN serves the frontend');
+    }
+  }
+}
+
+{
   // On a host you own, the app should sit behind a proxy on loopback. On a
   // managed platform the opposite is true: binding to loopback makes the
   // container unroutable and the deploy fails its health check.
   const host = process.env.HOST || '0.0.0.0';
   const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
-  if (loopback) {
+  if (isServerless) {
+    skip('HOST does not apply on serverless - the platform invokes a handler, nothing binds a port');
+  } else if (loopback) {
     pass(`HOST=${host} - the port is reachable only through a local reverse proxy`);
   } else if (isProd) {
     soft(

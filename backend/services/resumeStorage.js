@@ -21,8 +21,16 @@ export const RESUME_MIMES = Object.keys(MIME_EXT);
  * Largest resume accepted, decoded. Comfortably above any real CV.
  * Owned here rather than in the controller so the route that accepts the upload
  * and the service that writes it cannot drift to two different limits.
+ *
+ * Lower on serverless: Vercel rejects a function request body over 4.5MB at the
+ * platform edge, before any of this code runs, and base64 inflates a file by
+ * 4/3. A 5MB file arrives as ~6.7MB of JSON and would be refused with an opaque
+ * 413 that the applicant cannot act on. 3MB encodes to ~4MB, which fits with
+ * room for the other form fields.
  */
-export const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+const onServerless = Boolean(process.env.VERCEL);
+export const MAX_RESUME_BYTES = Number(process.env.MAX_RESUME_BYTES)
+  || (onServerless ? 3 * 1024 * 1024 : 5 * 1024 * 1024);
 
 /**
  * Stores a resume and returns where it went.
@@ -56,6 +64,18 @@ export async function storeResume(dataUrl) {
   // Try remote storage first, so configuring Cloudinary later needs no code change.
   const remote = await uploadDocument(dataUrl, 'qaroo/resumes');
   if (remote) return { url: remote, path: '', mime };
+
+  // On serverless there is no writable, persistent filesystem - the bundle is
+  // read-only and /tmp dies with the instance - so the disk fallback cannot
+  // work. Fail loudly and specifically here rather than letting mkdir throw
+  // EROFS, which reaches the applicant as "Something went wrong" and tells
+  // whoever reads the logs nothing about the actual cause.
+  if (onServerless) {
+    throw new Error(
+      'Resume uploads need Cloudinary on this deployment: a serverless function has no '
+      + 'persistent disk. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.'
+    );
+  }
 
   const buffer = Buffer.from(match[2], 'base64');
   await fs.promises.mkdir(RESUME_DIR, { recursive: true });

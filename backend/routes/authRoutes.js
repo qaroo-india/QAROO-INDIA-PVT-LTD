@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { sharedStore } from '../middleware/mongoRateLimitStore.js';
 import {
   register,
   login,
@@ -26,6 +27,7 @@ const router = Router();
 
 /** Sends mail to a caller-named address, so it can flood a mailbox. */
 const forgotLimiter = rateLimit({
+  store: sharedStore('forgot'),
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -35,6 +37,7 @@ const forgotLimiter = rateLimit({
 
 /** Sends an OTP to the signed-in admin's own mailbox. */
 const otpSendLimiter = rateLimit({
+  store: sharedStore('otp-send'),
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -48,6 +51,7 @@ const otpSendLimiter = rateLimit({
  * this bounds the rate across codes and from a single address.
  */
 const otpVerifyLimiter = rateLimit({
+  store: sharedStore('otp-verify'),
   windowMs: 15 * 60 * 1000,
   max: 20,
   standardHeaders: true,

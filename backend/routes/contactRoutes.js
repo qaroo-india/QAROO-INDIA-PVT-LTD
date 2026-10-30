@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { sharedStore } from '../middleware/mongoRateLimitStore.js';
 import {
   submitContact,
   listMessages,
@@ -20,6 +21,7 @@ const router = Router();
 // human, while stopping scripted flooding). Admin operations below are not
 // throttled.
 const submitLimiter = rateLimit({
+  store: sharedStore('contact-submit'),
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,

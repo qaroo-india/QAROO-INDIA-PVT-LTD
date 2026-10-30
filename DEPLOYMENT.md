@@ -129,13 +129,28 @@ applications.
 
 ### 3.2 Atlas network access
 
-A Node host's outbound IP is not fixed, so `0.0.0.0/0` plus a strong database
-password is the normal configuration for Render/Railway. If your host publishes
-static egress IPs, allowlist those instead.
+**Atlas → Security → Network Access → IP Access List.**
 
-Your own IP rotates (`223.185.23.8` → `223.185.23.40` during this work), so
-re-add it whenever local tooling stops connecting. Atlas signals a blocked IP as
-a **TLS alert 80 / "tlsv1 alert internal error"**, not as an auth failure.
+What to allowlist depends entirely on where the backend runs:
+
+| Host | Entry | Why |
+| --- | --- | --- |
+| **EC2** (Shape D) | the instance's **Elastic IP**, as `/32` | A plain EC2 public IP changes on stop/start; an Elastic IP does not. This is the only option here that is both pinned and stable. |
+| **Render / Railway** (Shape A) | `0.0.0.0/0` | Egress is from a shared pool with no fixed address. Unavoidable on these hosts — which is why the database password has to be strong and rotated if ever disclosed. Paid tiers sometimes offer static egress; use it if available. |
+| **Amplify compute** | `0.0.0.0/0` | Same reason. |
+
+So `0.0.0.0/0` is not automatically wrong — it is forced by hosts without stable
+egress. But it does mean the password is the *only* thing protecting the
+database, so prefer a host with a pinnable IP where you can.
+
+**Your own machine** needs an entry too, for the local tools. It rotates on this
+connection — `223.185.23.8` → `.40` → `223.185.20.72` over the course of this
+work — so re-add it whenever local tooling stops connecting.
+
+Atlas reports a blocked IP as a **TLS alert 80 / `tlsv1 alert internal error`**,
+*not* as an authentication failure. If you see that, it is the allowlist, not
+the password. `tools/preflight.mjs` and `rotate-credential.mjs` both detect this
+case and say so explicitly, because the raw error points the wrong way.
 
 ### 3.3 Deploy
 
@@ -307,14 +322,48 @@ discarded, so a lost code is a resend rather than a lockout.
 ## 8. Rotate these
 
 Both were typed into a chat transcript during development and should be
-considered disclosed:
-
-- the Atlas database user's password (rotate in Atlas, then update
-  `MONGODB_URI`)
-- the `support@qaroo.in` mailbox password (rotate in GoDaddy, then update
-  `EMAIL_PASSWORD`)
+considered disclosed: the **Atlas database user's password** and the
+**`support@qaroo.in` mailbox password**.
 
 `JWT_SECRET` in `.env.production` is freshly generated and was never printed.
+
+### How to rotate without breaking anything
+
+Change it at the provider **first**, then run the helper, which updates the env
+files and immediately proves the new credential against the real service:
+
+```bash
+cd backend
+node tools/rotate-credential.mjs mongo     # Atlas database user
+node tools/rotate-credential.mjs email     # support@qaroo.in mailbox
+```
+
+It reads the new value from a hidden prompt — never an argument — so the
+password does not reach your shell history or the process list. It backs the
+file up, and **rolls back if verification fails**, so a mistyped paste cannot
+leave the backend unable to start.
+
+The reason not to hand-edit `.env` for the database one: the password lives
+inside the connection string's userinfo section, so `: / ? # [ ] @ %` all have
+to be percent-encoded. The current password begins with `@` and is stored as
+`%40…`. Paste a new one in raw and the URI silently becomes wrong — and Atlas
+reports it as an *authentication* failure, which sends you looking at the
+password instead of the encoding.
+
+### Order of operations
+
+1. **Atlas:** create the *new* password on the existing user (Database Access →
+   Edit → Edit Password). The old one stops working the moment you save, so do
+   this when a few minutes of downtime is acceptable.
+2. Run `rotate-credential.mjs mongo` locally and confirm it connects.
+3. Update `MONGODB_URI` in the **host's** environment settings and redeploy or
+   restart — the running process still holds the old string in memory.
+4. Repeat for the mailbox via GoDaddy webmail, then
+   `rotate-credential.mjs email`.
+5. `NODE_ENV=production node tools/preflight.mjs` to confirm both.
+
+Rotating `JWT_SECRET` as well signs out every admin immediately — fine to do,
+just expect it.
 
 ---
 

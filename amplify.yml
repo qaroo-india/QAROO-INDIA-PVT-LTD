@@ -1,0 +1,47 @@
+# AWS Amplify build spec for the Qaroo India frontend.
+#
+# The frontend lives at the REPOSITORY ROOT, not in a client/ subdirectory, and
+# the backend is a sibling folder (backend/) that Amplify does not build. So the
+# Amplify app's "app root" / monorepo base directory must be left empty - do not
+# set it to "client", there is no such folder.
+#
+# Amplify injects environment variables at build time, so VITE_API_BASE_URL must
+# be set in the Amplify console (App settings -> Environment variables), not
+# here - this file is committed and VITE_ values are baked into the bundle and
+# therefore public.
+#
+#   VITE_API_BASE_URL=https://api.qaroo.in/api
+#
+# Note the /api suffix. The client uses the value as `${BASE}/auth/refresh`, so
+# omitting it makes every request 404.
+
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # ci, not install: build from the lockfile so a deploy cannot silently
+        # pick up a different dependency tree than the one that was tested.
+        - npm ci
+    build:
+      commands:
+        - |
+          if [ -z "$VITE_API_BASE_URL" ]; then
+            echo "VITE_API_BASE_URL is not set. The bundle would fall back to the"
+            echo "same-origin default '/api', which is wrong for a split deploy."
+            echo "Set it in App settings -> Environment variables."
+            exit 1
+          fi
+        - |
+          case "$VITE_API_BASE_URL" in
+            */api) : ;;
+            *) echo "VITE_API_BASE_URL must end in /api (got: $VITE_API_BASE_URL)"; exit 1 ;;
+          esac
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*

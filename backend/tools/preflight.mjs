@@ -44,8 +44,53 @@ else bad(`NODE_ENV is "${process.env.NODE_ENV || '(unset)'}" - set it to product
 {
   const { errors, warnings } = (await import('../config/validateEnv.js')).default();
   errors.forEach((e) => bad(e));
-  warnings.forEach((w) => soft(w.split('.')[0] + '.'));
+  // Cloudinary is reported separately below, as blocking rather than advisory.
+  warnings
+    .filter((w) => !/Cloudinary/i.test(w))
+    .forEach((w) => soft(w.split('.')[0] + '.'));
   if (!errors.length) pass('validateEnv reports no blocking errors');
+}
+
+{
+  // Uploaded resumes are the only data on this site that cannot be regenerated.
+  // Without object storage they go to the container's local disk, which a
+  // redeploy or an autoscale event discards - so this is treated as blocking
+  // rather than advisory, with an explicit opt-out for a knowing launch.
+  const configured = process.env.CLOUDINARY_CLOUD_NAME
+    && process.env.CLOUDINARY_API_KEY
+    && process.env.CLOUDINARY_API_SECRET;
+  const accepted = process.env.ALLOW_EPHEMERAL_UPLOADS === 'true';
+
+  if (configured) {
+    pass('Cloudinary is configured, so uploads survive a redeploy');
+  } else if (!isProd) {
+    skip('Cloudinary not configured (fine outside production - uploads go to local disk)');
+  } else if (accepted) {
+    soft('Cloudinary is not configured and ALLOW_EPHEMERAL_UPLOADS=true. Uploaded resumes WILL be lost on the next redeploy; you have accepted this knowingly.');
+  } else {
+    bad(
+      'Cloudinary is not configured. Uploaded resumes and CMS images go to the local disk and are '
+      + 'lost on every redeploy, and job applications cannot be regenerated. Configure it, or set '
+      + 'ALLOW_EPHEMERAL_UPLOADS=true to accept the loss deliberately.'
+    );
+  }
+}
+
+{
+  // On a host you own, the app should sit behind a proxy on loopback. On a
+  // managed platform the opposite is true: binding to loopback makes the
+  // container unroutable and the deploy fails its health check.
+  const host = process.env.HOST || '0.0.0.0';
+  const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+  if (loopback) {
+    pass(`HOST=${host} - the port is reachable only through a local reverse proxy`);
+  } else if (isProd) {
+    soft(
+      `HOST=${host} binds every interface. Correct on a managed host (Render, Railway, Amplify `
+      + 'compute). On an EC2 instance behind nginx, set HOST=127.0.0.1 and keep port 5000 closed '
+      + 'in the security group.'
+    );
+  }
 }
 
 // ------------------------------------------------------------- secrets ----

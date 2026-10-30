@@ -136,8 +136,17 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`Qaroo India Private Limited CMS backend running on http://localhost:${PORT}`);
+// Which interfaces to accept connections on.
+//
+// The default binds everywhere, which is what a managed host (Render, Railway,
+// Amplify's compute) requires in order to route traffic to the container. Behind
+// a reverse proxy on a machine you own - nginx on EC2 - set HOST=127.0.0.1 so
+// the port is reachable only from the proxy on the same host and cannot be hit
+// directly from the internet even if a security group is left open.
+const HOST = process.env.HOST || '0.0.0.0';
+const server = app.listen(PORT, HOST, () => {
+  const where = HOST === '127.0.0.1' ? 'loopback only' : `all interfaces (${HOST})`;
+  console.log(`Qaroo India Private Limited CMS backend listening on port ${PORT} - ${where}`);
 });
 
 process.on('unhandledRejection', (err) => {

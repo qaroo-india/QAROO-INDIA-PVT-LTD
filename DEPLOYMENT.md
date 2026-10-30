@@ -77,7 +77,29 @@ the frontend lands on `*.vercel.app` rather than a `qaroo.in` subdomain it is
 appear to succeed and immediately log out. Attaching `www.qaroo.in` to Vercel
 avoids this entirely.
 
-The rest of this document assumes **Shape A**.
+### Shape D — AWS Amplify frontend + EC2 backend
+
+Artifacts for this are committed and inert until you use them:
+
+| File | Purpose |
+| --- | --- |
+| `amplify.yml` | Amplify build spec. **App root must be left empty** — the frontend is at the repo root, there is no `client/` folder. It fails the build if `VITE_API_BASE_URL` is unset or missing the `/api` suffix. |
+| `deploy/amplify-rewrites.json` | The SPA fallback. `public/.htaccess` is an Apache file and does **nothing** on Amplify, so without this rule a refresh on `/learning-programs/<slug>` returns Amplify's 404. |
+| `deploy/nginx-api.qaroo.in.conf` | Reverse proxy to `127.0.0.1:5000`, with certbot notes. |
+| `deploy/ecosystem.config.cjs` | PM2 definition, bound to loopback. |
+
+Specific to this shape:
+
+- **Set `HOST=127.0.0.1`.** The app binds all interfaces by default, which is required on managed hosts but wrong on a machine you own — it leaves port 5000 publicly reachable if the security group is ever loose. Keep 5000 closed in the security group too; the bind address and the firewall are independent controls.
+- **Do not set `X-Forwarded-For` with `$proxy_add_x_forwarded_for`.** The app sets `trust proxy 1`, so it reads the *last* entry as the client. Appending preserves a client-supplied header and lets a caller spoof its address straight past the rate limiters. The committed config uses `$remote_addr`.
+- **Stay on one PM2 instance** unless you move the rate-limit store to Redis or Mongo first. `express-rate-limit`'s default store is per-process, so N workers each allow the full quota and every limit becomes N times looser.
+- **Atlas:** give the instance an Elastic IP and allowlist that `/32`. This is better than the `0.0.0.0/0` that Render/Railway force, and your checklist is right to prefer it.
+
+### Which to pick
+
+Shape A is what `dist/` and the rest of this document are built for. Shape D is a bigger setup — you own patching, nginx, TLS renewal and PM2 — but gives you a pinnable egress IP for Atlas and somewhere to run cron. Shape B is the simplest and tightest of all if you are willing to move the website off GoDaddy hosting (the mailbox can stay).
+
+**The rest of this document assumes Shape A**, and notes where Shape D differs.
 
 ---
 
@@ -199,9 +221,44 @@ cookie survives), submit a contact form and a brochure request, and download a
 resume from the applications table.
 
 Submit the sitemap at `https://www.qaroo.in/sitemap.xml` to Google Search
-Console. Set up SPF and DKIM for `qaroo.in` at GoDaddy — without them,
-verification and password-reset mail is usually filtered as spam even though
-SMTP authentication succeeds.
+Console.
+
+### Mail deliverability — SPF and DKIM
+
+`tools/check-mail.mjs` proving AUTH works only means the server accepted the
+credential. It says nothing about whether the message reaches an inbox. Without
+these records, password-reset and verification mail is routinely filed as spam.
+
+Add at GoDaddy DNS for `qaroo.in`:
+
+| Type | Name | Value |
+| --- | --- | --- |
+| TXT | `@` | `v=spf1 include:secureserver.net -all` |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:support@qaroo.in; fo=1` |
+
+- **SPF:** if a TXT record starting `v=spf1` already exists, **edit it** rather
+  than adding a second one — two SPF records is itself a failure. Use `-all`
+  only once you are sure nothing else sends as `qaroo.in`; `~all` is the safer
+  first move.
+- **DKIM:** GoDaddy generates the key, so it cannot be written out here. Enable
+  it in Email & Office → your domain → DKIM, then add the `CNAME`/`TXT` records
+  it gives you.
+- **DMARC:** start at `p=none`, which only reports. Move to `p=quarantine` after
+  a week or two of clean reports, never on day one.
+
+Verify once propagated:
+
+```bash
+nslookup -type=TXT qaroo.in 8.8.8.8
+nslookup -type=TXT _dmarc.qaroo.in 8.8.8.8
+```
+
+Then send yourself a real message and check the headers show `spf=pass` and
+`dkim=pass`:
+
+```bash
+cd backend && node tools/check-mail.mjs --send=you@example.com
+```
 
 ---
 
@@ -226,7 +283,28 @@ sender on the same domain, which is the condition that caused the bounce.
 
 ---
 
-## 7. Rotate these
+## 7. Session behaviour worth knowing
+
+Changing or resetting a password now **ends every other session** for that
+account. `Admin.passwordChangedAt` is stamped on the change, and `protect`,
+`optionalAuth` and `/auth/refresh` all refuse a token minted before it — so a
+signed-in browser elsewhere is logged out on its next request rather than
+lasting until its seven-day refresh token expires.
+
+Two consequences:
+
+- A password change signs **you** out too, on every device. That is intended.
+- The stamp is backdated one second, so a token issued in the same second as
+  the change survives. Without that, logging straight back in after a reset
+  could be rejected by its own stamp — `iat` has only second resolution.
+
+A password change is authorised by the **emailed code alone**; the current
+password is not required. Each code survives five wrong guesses and is then
+discarded, so a lost code is a resend rather than a lockout.
+
+---
+
+## 8. Rotate these
 
 Both were typed into a chat transcript during development and should be
 considered disclosed:
@@ -240,17 +318,21 @@ considered disclosed:
 
 ---
 
-## 8. Known, accepted
+## 9. Known, accepted
 
 - **New admins are emailed a plaintext password.** `initialPassword` holds it
-  until approval, then it is cleared. It is `select: false` and stripped from
-  JSON, so it is not exposed over the API, but a set-password link would be the
-  correct design. Changing it is a flow redesign, not a patch.
-- **`Admin.password` has no `select: false`.** `toJSON` deletes the hash and no
-  query uses `.lean()`, so there is no path by which it reaches a response.
-  Adding it would make every `admin.save()` on a document loaded without
-  `+password` a validation risk across the approve/verify/reset flows.
+  between creation and verification, then it is cleared. It is `select: false`
+  and stripped from JSON, so it is not exposed over the API, but a set-password
+  link is the correct design — the machinery now exists (`resetTokenHash`), so
+  `verifyAdmin` could issue a link instead of revealing the typed password.
+  **This is the one outstanding security item.** It is left alone because it
+  changes how a Super Admin onboards someone — today they choose the password
+  and can pass it on out of band — and that is a product decision, not a patch.
 - **3 dev-only advisories** (`nodemon`, `source-map-js`). Neither ships: the
   production dependency audit is clean on both sides.
+- **Cloudinary is treated as blocking** by `tools/preflight.mjs` in production,
+  not advisory. Uploaded resumes are the only data here that cannot be
+  regenerated. Set `ALLOW_EPHEMERAL_UPLOADS=true` to launch without it
+  knowingly.
 - **Equal-height solution cards are not pixel-verified.** The page's WebGL
   carousel does not survive test stubbing; check them by eye.

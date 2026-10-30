@@ -1,0 +1,19 @@
+[
+  {
+    "_comment": "Paste this into Amplify: App settings -> Rewrites and redirects -> Open text editor.",
+
+    "_why": "public/.htaccess does nothing on Amplify - it is an Apache file. Without an equivalent rule here, a direct visit or refresh on a nested route such as /learning-programs/full-stack-development returns Amplify's 404 instead of index.html, because no file exists at that path. This is the single most common broken thing about an SPA on Amplify.",
+
+    "_order": "Amplify applies rules top to bottom and stops at the first match, so the asset rule MUST come before the catch-all. Reversing them would serve index.html for your JS and CSS and the site would render blank.",
+
+    "source": "/<*>.<css|js|map|json|txt|xml|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|eot|pdf>",
+    "target": "/<*>.<css|js|map|json|txt|xml|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|eot|pdf>",
+    "status": "200"
+  },
+  {
+    "_comment": "Everything else is a client-side route: hand back the app shell.",
+    "source": "/<*>",
+    "target": "/index.html",
+    "status": "200"
+  }
+]

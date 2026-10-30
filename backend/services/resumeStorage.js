@@ -29,6 +29,16 @@ export const RESUME_MIMES = Object.keys(MIME_EXT);
  * room for the other form fields.
  */
 const onServerless = Boolean(process.env.VERCEL);
+
+/**
+ * Whether to keep the file in MongoDB rather than on the local disk.
+ *
+ * Forced on serverless, where there is no persistent disk at all. Opt in
+ * elsewhere with RESUME_STORE=mongo, which is also what you want behind more
+ * than one instance: two containers do not share a filesystem, so a resume
+ * written by one is a 404 from the other.
+ */
+const useDatabaseStore = () => onServerless || process.env.RESUME_STORE === 'mongo';
 export const MAX_RESUME_BYTES = Number(process.env.MAX_RESUME_BYTES)
   || (onServerless ? 3 * 1024 * 1024 : 5 * 1024 * 1024);
 
@@ -41,7 +51,8 @@ export const MAX_RESUME_BYTES = Number(process.env.MAX_RESUME_BYTES)
  * raw URL - a resume is personal data and should not sit on a guessable URL.
  *
  * @param {string} dataUrl base64 data URL from the browser
- * @returns {Promise<{url: string, path: string, mime: string}>}
+ * @returns {Promise<{url: string, path: string, mime: string, fileId?: string}>}
+ *   Exactly one of url (remote), fileId (database) or path (local disk) is set.
  */
 export async function storeResume(dataUrl) {
   const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || '');
@@ -65,19 +76,22 @@ export async function storeResume(dataUrl) {
   const remote = await uploadDocument(dataUrl, 'qaroo/resumes');
   if (remote) return { url: remote, path: '', mime };
 
-  // On serverless there is no writable, persistent filesystem - the bundle is
-  // read-only and /tmp dies with the instance - so the disk fallback cannot
-  // work. Fail loudly and specifically here rather than letting mkdir throw
-  // EROFS, which reaches the applicant as "Something went wrong" and tells
-  // whoever reads the logs nothing about the actual cause.
-  if (onServerless) {
-    throw new Error(
-      'Resume uploads need Cloudinary on this deployment: a serverless function has no '
-      + 'persistent disk. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.'
-    );
+  const buffer = Buffer.from(match[2], 'base64');
+
+  // No writable persistent disk on serverless - the bundle is read-only and
+  // /tmp dies with the instance - so keep the file in the database instead.
+  // Also available anywhere via RESUME_STORE=mongo.
+  if (useDatabaseStore()) {
+    const ResumeFile = (await import('../models/ResumeFile.js')).default;
+    const doc = await ResumeFile.create({
+      data: buffer,
+      mime,
+      size: buffer.length,
+      ext: MIME_EXT[mime],
+    });
+    return { url: '', path: '', mime, fileId: String(doc._id) };
   }
 
-  const buffer = Buffer.from(match[2], 'base64');
   await fs.promises.mkdir(RESUME_DIR, { recursive: true });
 
   // Name is generated, never taken from the upload: a user-supplied name is a
@@ -107,9 +121,27 @@ export function resumeFilePath(name) {
 export async function deleteResume(name) {
   const file = resumeFilePath(name);
   if (!file) return;
+  await fs.promises.unlink(file).catch(() => {});
+}
+
+/** Removes a database-stored resume. Safe to call with a missing id. */
+export async function deleteResumeFile(fileId) {
+  if (!fileId) return;
   try {
-    await fs.promises.unlink(file);
+    const ResumeFile = (await import('../models/ResumeFile.js')).default;
+    await ResumeFile.deleteOne({ _id: fileId });
+  } catch { /* already gone, or an id that was never valid */ }
+}
+
+/** Reads a database-stored resume, or null when it is not there. */
+export async function readResumeFile(fileId) {
+  if (!fileId) return null;
+  try {
+    const ResumeFile = (await import('../models/ResumeFile.js')).default;
+    const doc = await ResumeFile.findById(fileId);
+    if (!doc) return null;
+    return { data: doc.data, mime: doc.mime, ext: doc.ext, size: doc.size };
   } catch {
-    // Already gone - nothing to do.
+    return null;
   }
 }

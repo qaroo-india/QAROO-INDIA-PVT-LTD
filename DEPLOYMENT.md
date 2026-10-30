@@ -141,10 +141,15 @@ Four things serverless changes, all handled in code but worth knowing:
    index for cleanup. It selects itself automatically when `VERCEL` is set.
    *(The per-code OTP attempt counter was already on the admin document, so
    that one survived regardless.)*
-2. **Cloudinary is mandatory, not advisory.** There is no writable persistent
-   disk — not even `/tmp` beyond the instance's life — so without it resume
-   uploads fail outright rather than being merely lossy. `ALLOW_EPHEMERAL_UPLOADS`
-   does **not** help here, and `preflight` says so.
+2. **Resumes go to MongoDB when Cloudinary is unset.** There is no writable
+   persistent disk, so the old local-disk fallback could not work at all. The
+   file is now stored in its own `resumefiles` collection instead (`RESUME_STORE=mongo`,
+   implied by `VERCEL`), which survives a redeploy. Binary blobs in a database
+   are not the general answer, but at a 3MB cap, a handful of uploads and reads
+   only when an admin opens one, it is the right trade — and far better than
+   losing applications. **Cloudinary is still preferred** and is tried first;
+   an Atlas M0 (512MB) holds roughly 170 resumes, so configure it before
+   volume picks up. Switching later needs no code change.
 3. **Vercel caps a function request body at 4.5 MB.** Resumes arrive
    base64-encoded, which inflates a file by 4/3, so the limit drops to **3 MB**
    automatically when `VERCEL` is set. A 5 MB file would be refused at the edge
@@ -448,9 +453,9 @@ just expect it.
   and can pass it on out of band — and that is a product decision, not a patch.
 - **3 dev-only advisories** (`nodemon`, `source-map-js`). Neither ships: the
   production dependency audit is clean on both sides.
-- **Cloudinary is treated as blocking** by `tools/preflight.mjs` in production,
-  not advisory. Uploaded resumes are the only data here that cannot be
-  regenerated. Set `ALLOW_EPHEMERAL_UPLOADS=true` to launch without it
-  knowingly.
+- **Resumes are in MongoDB, not object storage**, until Cloudinary is
+  configured. Durable and redeploy-safe, but it consumes cluster storage: an
+  Atlas M0 holds roughly 170 at the 3MB cap. `preflight` reports this as
+  advisory, not blocking.
 - **Equal-height solution cards are not pixel-verified.** The page's WebGL
   carousel does not survive test stubbing; check them by eye.

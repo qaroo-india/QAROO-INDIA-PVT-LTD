@@ -22,6 +22,8 @@ import mongoose from 'mongoose';
 import Admin from '../models/Admin.js';
 import LearningProgram from '../models/LearningProgram.js';
 import ContactMessage from '../models/ContactMessage.js';
+import JobPosting from '../models/JobPosting.js';
+import JobApplication from '../models/JobApplication.js';
 import { ALL_PERMISSIONS } from '../utils/permissions.js';
 import { notFound, errorHandler } from '../middleware/errorMiddleware.js';
 
@@ -29,6 +31,7 @@ import authRoutes from '../routes/authRoutes.js';
 import adminRoutes from '../routes/adminRoutes.js';
 import learningRoutes from '../routes/learningRoutes.js';
 import contactRoutes from '../routes/contactRoutes.js';
+import applicationRoutes from '../routes/applicationRoutes.js';
 
 const URI = process.env.TEST_MONGODB_URI || 'mongodb://127.0.0.1:27017/qaroo_cms_test';
 if (!/test/i.test(new URL(URI.replace('mongodb://', 'http://')).pathname)) {
@@ -56,6 +59,7 @@ before(async () => {
   app.use('/api/admins', adminRoutes);
   app.use('/api/learning', learningRoutes);
   app.use('/api/contact', contactRoutes);
+  app.use('/api/applications', applicationRoutes);
   app.use(notFound);
   app.use(errorHandler);
 
@@ -745,4 +749,73 @@ test('the password hash is never selected or serialised', async () => {
 
   // Login still works, which is the one path that asks for the hash.
   assert.ok(me.data.data.admin.email === TWO_DEVICE.email);
+});
+
+// ------------------------------------------- resumes stored in the database --
+
+// Serverless has no persistent disk, so without object storage a resume used to
+// be lost - and job applications are the only data here that cannot be
+// regenerated. RESUME_STORE=mongo keeps the file in the database instead. This
+// covers the full round trip: upload, download, and deletion.
+
+test('a resume can be stored in the database and downloaded back byte-for-byte', async () => {
+  const prev = process.env.RESUME_STORE;
+  process.env.RESUME_STORE = 'mongo';
+  try {
+    // A small but non-trivial payload, so a truncation would show up.
+    const body = Buffer.concat([
+      Buffer.from('%PDF-1.4\n'),
+      Buffer.alloc(5000, 0xab),
+      Buffer.from('\n%%EOF'),
+    ]);
+    const dataUrl = `data:application/pdf;base64,${body.toString('base64')}`;
+
+    const job = await JobPosting.create({
+      title: 'DB Resume Role', slug: 'db-resume-role', status: 'published',
+      location: 'Coimbatore', type: 'Full-time', description: 'x',
+    });
+
+    const pub = client();
+    const submitted = await pub('POST', '/api/applications', {
+      jobSlug: 'db-resume-role',
+      name: 'Pat O\'Brien-Test',
+      email: 'pat@test.local',
+      phone: '9999999999',
+      resumeFile: dataUrl,
+      // Checked server-side as the record of consent, so the test has to send it.
+      declaration: true,
+    });
+    assert.equal(submitted.status, 201, JSON.stringify(submitted.data));
+
+    const app = await JobApplication.findOne({ email: 'pat@test.local' });
+    assert.ok(app.resumeFileId, 'the application should reference a stored file');
+    assert.equal(app.resumePath, '', 'nothing should have been written to disk');
+
+    // The blob lives in its own collection, so listing applications stays light.
+    const ResumeFile = (await import('../models/ResumeFile.js')).default;
+    const stored = await ResumeFile.findById(app.resumeFileId);
+    assert.equal(stored.size, body.length);
+    assert.equal(stored.mime, 'application/pdf');
+
+    // Download it through the permission-gated route and compare bytes.
+    const admin = await loginAs(SUPER);
+    const res = await fetch(`${base}/api/applications/${app._id}/resume`, {
+      headers: { Cookie: (await admin('GET', '/api/auth/me')).jar },
+    });
+    assert.equal(res.status, 200);
+    const got = Buffer.from(await res.arrayBuffer());
+    assert.equal(got.length, body.length, 'downloaded length should match');
+    assert.ok(got.equals(body), 'downloaded bytes should be identical');
+    assert.match(res.headers.get('content-disposition') || '', /attachment; filename="Pat_O_Brien-Test-resume\.pdf"/);
+
+    // Deleting the application removes the blob too, rather than orphaning it.
+    const del = await admin('DELETE', `/api/applications/${app._id}`);
+    assert.equal(del.status, 200, JSON.stringify(del.data));
+    assert.equal(await ResumeFile.findById(app.resumeFileId), null, 'the blob should be deleted with the application');
+
+    await JobPosting.deleteOne({ _id: job._id });
+  } finally {
+    if (prev === undefined) delete process.env.RESUME_STORE;
+    else process.env.RESUME_STORE = prev;
+  }
 });

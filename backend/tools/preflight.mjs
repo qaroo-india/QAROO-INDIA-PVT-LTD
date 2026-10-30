@@ -95,8 +95,18 @@ else bad(`NODE_ENV is "${process.env.NODE_ENV || '(unset)'}" - set it to product
 
     const cloud = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY
       && process.env.CLOUDINARY_API_SECRET;
-    if (cloud) pass('Cloudinary is configured, which serverless requires for uploads');
-    else bad('serverless has no writable persistent disk, so resume uploads cannot work at all without Cloudinary. ALLOW_EPHEMERAL_UPLOADS does not help here.');
+    if (cloud) {
+      pass('Cloudinary is configured, so uploads go to object storage');
+    } else {
+      // Not fatal any more: without Cloudinary the file is kept in MongoDB,
+      // which survives a redeploy. Worth flagging, because resumes then count
+      // against the cluster's storage.
+      soft(
+        'Cloudinary is not configured, so resumes are stored in MongoDB instead. That is durable '
+        + 'and works on serverless, but at up to 3MB each they consume cluster storage - an Atlas '
+        + 'M0 (512MB) holds roughly 170. Configure Cloudinary before high volume.'
+      );
+    }
 
     const { MAX_RESUME_BYTES } = await import('../services/resumeStorage.js');
     const encoded = Math.ceil((MAX_RESUME_BYTES * 4) / 3);

@@ -5,6 +5,8 @@ import {
   storeResume,
   resumeFilePath,
   deleteResume,
+  deleteResumeFile,
+  readResumeFile,
   MAX_RESUME_BYTES,
 } from '../services/resumeStorage.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
@@ -93,6 +95,7 @@ const submitApplication = async (req, res, next) => {
       declaration: true,
       resumeUrl: stored.url,
       resumePath: stored.path,
+      resumeFileId: stored.fileId || null,
       resumeMime: stored.mime,
       resumeName: String(resumeName || '').slice(0, 255),
     });
@@ -185,6 +188,7 @@ const deleteApplication = async (req, res, next) => {
     // Remove the stored file as well, so deleting an application does not leave
     // the candidate's resume behind on disk.
     if (application.resumePath) await deleteResume(application.resumePath);
+    if (application.resumeFileId) await deleteResumeFile(application.resumeFileId);
     await application.deleteOne();
     res.json({ success: true, message: 'Application deleted' });
   } catch (err) {
@@ -206,6 +210,22 @@ const downloadResume = async (req, res, next) => {
     if (!application) return res.status(404).json({ success: false, message: 'Application not found' });
 
     if (application.resumeUrl) return res.redirect(application.resumeUrl);
+
+    // Stored in the database when the host has no persistent disk. Sent from
+    // memory rather than streamed: the cap is 3MB, so buffering is cheaper than
+    // the ceremony of a GridFS stream.
+    if (application.resumeFileId) {
+      const stored = await readResumeFile(application.resumeFileId);
+      if (!stored) return res.status(404).json({ success: false, message: 'No resume on file' });
+      // Sanitised because it goes into a response header.
+      const name = `${application.name.replace(/[^\w.-]+/g, '_')}-resume.${stored.ext || 'pdf'}`;
+      res.type(stored.mime || application.resumeMime || 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `${req.query.inline === '1' ? 'inline' : 'attachment'}; filename="${name}"`
+      );
+      return res.send(stored.data);
+    }
 
     const file = resumeFilePath(application.resumePath);
     if (!file) return res.status(404).json({ success: false, message: 'No resume on file' });

@@ -31,6 +31,9 @@ const jobApplicationSchema = new mongoose.Schema(
     // through the permission-gated download route.
     resumeUrl: { type: String, default: '' },
     resumePath: { type: String, default: '' },
+    // Set instead of resumePath when the file lives in the database,
+    // which is how deployments without a persistent disk store it.
+    resumeFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'ResumeFile', default: null },
     resumeMime: { type: String, default: '' },
     resumeName: { type: String, default: '', maxlength: 255 },
     // Legacy: the form no longer collects a link, but records created while it

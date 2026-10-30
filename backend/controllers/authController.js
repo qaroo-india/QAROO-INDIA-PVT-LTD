@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import Admin from '../models/Admin.js';
 import { clientUrl } from '../config/site.js';
+import { tokenPredatesPasswordChange } from '../middleware/authMiddleware.js';
 import {
   generateVerificationToken,
   generateOTP,
@@ -91,7 +92,8 @@ const login = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    // +password: the hash is select: false, and this is the only place it is needed.
+    const admin = await Admin.findOne({ email: email.toLowerCase() }).select('+password');
     if (!admin || !(await admin.matchPassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -139,7 +141,7 @@ const refresh = async (req, res, next) => {
     } catch {
       return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     }
-    const admin = await Admin.findById(decoded.id);
+    const admin = await Admin.findById(decoded.id).select('+passwordChangedAt');
     if (!admin || admin.isDisabled) {
       return res.status(401).json({ success: false, message: 'Account no longer available' });
     }
@@ -148,6 +150,13 @@ const refresh = async (req, res, next) => {
     if (!admin.isEmailVerified || !admin.isApproved) {
       clearAuthCookies(res);
       return res.status(401).json({ success: false, message: 'Account no longer available' });
+    }
+    // The access tokens expire in 15 minutes, but the refresh token lasts a
+    // week - so this is the check that actually stops a session elsewhere from
+    // outliving a password change.
+    if (tokenPredatesPasswordChange(decoded, admin)) {
+      clearAuthCookies(res);
+      return res.status(401).json({ success: false, message: 'Password was changed. Please sign in again.' });
     }
     const accessToken = jwt.sign(
       { id: admin._id, role: admin.role },

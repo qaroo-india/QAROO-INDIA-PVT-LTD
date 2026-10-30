@@ -665,3 +665,84 @@ test('the emailed reset link is one origin, not the whole CORS allowlist', async
     process.env.CLIENT_URL = before;
   }
 });
+
+// ------------------------------------- password change ends other sessions ---
+
+// A JWT carries no server-side state, so before passwordChangedAt existed a
+// session on another device kept working for up to the refresh token's seven
+// days after the password changed. These pin that it no longer does.
+
+const TWO_DEVICE = { email: 'twodevice@test.local', password: 'TwoDevice!2345' };
+
+test('changing the password ends a session on another device', async () => {
+  await Admin.create({
+    name: 'TwoDevice', email: TWO_DEVICE.email, password: TWO_DEVICE.password,
+    role: 'admin', permissions: [], isEmailVerified: true, isApproved: true,
+  });
+
+  // Two independent cookie jars: the same account signed in twice.
+  const deviceA = await loginAs(TWO_DEVICE);
+  const deviceB = await loginAs(TWO_DEVICE);
+
+  // Both are live to begin with.
+  assert.equal((await deviceA('GET', '/api/auth/me')).status, 200, 'A should start authenticated');
+  assert.equal((await deviceB('GET', '/api/auth/me')).status, 200, 'B should start authenticated');
+
+  // passwordChangedAt is backdated one second on purpose, so that a token
+  // minted immediately after a reset is not caught by its own stamp. A real
+  // second session is always older than that window; this waits past it rather
+  // than pretending a device signed in the same millisecond.
+  await new Promise((r) => setTimeout(r, 1100));
+
+  // B changes the password.
+  await plantOtp(TWO_DEVICE.email, '654321');
+  const changed = await deviceB('POST', '/api/auth/change-password', {
+    newPassword: 'RotatedPass!99',
+    otp: '654321',
+  });
+  assert.equal(changed.status, 200, JSON.stringify(changed.data));
+
+  // A still holds a valid, unexpired access token - and must now be refused.
+  const meA = await deviceA('GET', '/api/auth/me');
+  assert.equal(meA.status, 401, 'the other device must be signed out');
+  assert.match(meA.data.message, /password was changed/i);
+
+  // And it cannot mint a fresh access token from its week-long refresh token.
+  const refreshA = await deviceA('POST', '/api/auth/refresh');
+  assert.equal(refreshA.status, 401, 'a stale refresh token must not be honoured');
+  assert.match(refreshA.data.message, /password was changed/i);
+});
+
+test('a password reset by link also ends other sessions', async () => {
+  const device = await loginAs({ email: TWO_DEVICE.email, password: 'RotatedPass!99' });
+  assert.equal((await device('GET', '/api/auth/me')).status, 200);
+  await new Promise((r) => setTimeout(r, 1100)); // clear the backdating window
+
+  const raw = 'reset-ends-sessions-dddddddddddddddddddd';
+  await plantResetToken(TWO_DEVICE.email, raw);
+  const c = client();
+  const res = await c('POST', `/api/auth/reset-password/${raw}`, { password: 'AfterReset!2345' });
+  assert.equal(res.status, 200, JSON.stringify(res.data));
+
+  assert.equal((await device('GET', '/api/auth/me')).status, 401, 'the live session must be ended by a reset');
+});
+
+test('the password hash is never selected or serialised', async () => {
+  // select: false, so an ordinary read does not even load it.
+  const plain = await Admin.findOne({ email: TWO_DEVICE.email });
+  assert.equal(plain.password, undefined, 'an ordinary query must not load the hash');
+
+  // And it is absent from the API representation.
+  const c = await loginAs({ email: TWO_DEVICE.email, password: 'AfterReset!2345' });
+  const me = await c('GET', '/api/auth/me');
+  assert.equal(me.status, 200);
+  const body = JSON.stringify(me.data);
+  // Check for the field and for a bcrypt digest, rather than the bare substring
+  // "password" - harmless names like passwordChangedAt would match that.
+  assert.ok(!/"password"\s*:/.test(body), 'no password field should appear in /me');
+  assert.ok(!/\$2[aby]\$/.test(body), 'no bcrypt hash should appear in /me');
+  assert.ok(!/passwordChangedAt/.test(body), 'internal bookkeeping should not be serialised');
+
+  // Login still works, which is the one path that asks for the hash.
+  assert.ok(me.data.data.admin.email === TWO_DEVICE.email);
+});

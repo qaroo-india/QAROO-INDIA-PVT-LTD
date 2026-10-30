@@ -12,7 +12,16 @@ const adminSchema = new mongoose.Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
     },
-    password: { type: String, required: [true, 'Password is required'], minlength: [8, 'Password must be at least 8 characters'] },
+    // select: false so the hash is never loaded unless a caller asks for it.
+    // toJSON already strips it, but that only covers serialisation - a future
+    // .lean() query or a hand-built response object would bypass it entirely.
+    // Only the login path needs the hash, and it asks with +password.
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      minlength: [8, 'Password must be at least 8 characters'],
+      select: false,
+    },
     role: { type: String, enum: ['superadmin', 'admin'], default: 'admin' },
     permissions: { type: [String], default: [] },
     isEmailVerified: { type: Boolean, default: false },
@@ -27,6 +36,8 @@ const adminSchema = new mongoose.Schema(
     // hand over usable reset links.
     resetTokenHash: { type: String, default: null, select: false },
     resetTokenExpires: { type: Date, default: null, select: false },
+    // When the password last changed. Tokens issued before this are refused.
+    passwordChangedAt: { type: Date, select: false },
     verificationOTP: { type: String, default: null },
     verificationOTPExpires: { type: Date, default: null },
     // Temporary plaintext credential used for the first-login confirmation email.
@@ -60,6 +71,13 @@ adminSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  // Stamped so every token minted before this moment stops being accepted: a
+  // JWT carries no server-side state, so without this a session on another
+  // device keeps working for up to the refresh token's seven days after the
+  // password was changed or reset. Backdated a second because the token issued
+  // immediately after a change would otherwise race its own stamp and be
+  // rejected.
+  if (!this.isNew) this.passwordChangedAt = new Date(Date.now() - 1000);
   next();
 });
 
@@ -78,6 +96,9 @@ adminSchema.methods.toJSON = function () {
   delete obj.passwordOTPAttempts;
   delete obj.resetTokenHash;
   delete obj.resetTokenExpires;
+  // protect() loads this with +passwordChangedAt, so without this it would ride
+  // along in every /me response. Harmless, but it is internal bookkeeping.
+  delete obj.passwordChangedAt;
   return obj;
 };
 

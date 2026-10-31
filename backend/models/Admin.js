@@ -42,7 +42,6 @@ const adminSchema = new mongoose.Schema(
     verificationOTPExpires: { type: Date, default: null },
     // Temporary plaintext credential used for the first-login confirmation email.
     // Cleared as soon as the confirmation email is sent; never exposed via the API.
-    initialPassword: { type: String, default: '', select: false },
     passwordOTP: { type: String, default: null, select: false },
     passwordOTPExpires: { type: Date, default: null, select: false },
     // The OTP is the only factor protecting a password change, so guessing has
@@ -90,7 +89,6 @@ adminSchema.methods.toJSON = function () {
   delete obj.password;
   delete obj.verificationToken;
   delete obj.verificationOTP;
-  delete obj.initialPassword;
   delete obj.passwordOTP;
   delete obj.passwordOTPExpires;
   delete obj.passwordOTPAttempts;

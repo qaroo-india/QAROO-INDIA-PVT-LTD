@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import Admin from '../models/Admin.js';
 import { clientUrl } from '../config/site.js';
 import { tokenPredatesPasswordChange } from '../middleware/authMiddleware.js';
+import { hashResetToken, issueResetToken } from '../utils/resetToken.js';
 import {
   generateVerificationToken,
   generateOTP,
@@ -247,9 +248,7 @@ const forgotPassword = async (req, res, next) => {
     if (admin) {
       // The raw token only ever exists here and in the email; the database
       // keeps its digest.
-      const rawToken = generateVerificationToken();
-      admin.resetTokenHash = hashResetToken(rawToken);
-      admin.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
+      const rawToken = issueResetToken(admin);
       await admin.save();
       const link = clientUrl(`/admin/reset-password?token=${rawToken}`);
       try {
@@ -305,15 +304,6 @@ const resetPassword = async (req, res, next) => {
 /** Guesses allowed against any single emailed code before it is discarded. */
 const MAX_OTP_ATTEMPTS = 5;
 
-/**
- * Digest of a password-reset token, as stored.
- *
- * A reset token is a password equivalent for the window it is alive, so the
- * database holds only its hash. No salt and no bcrypt: the token is 32 random
- * bytes, so it is not guessable and there is nothing for a rainbow table to
- * precompute - and a plain digest keeps the lookup a single indexed query.
- */
-const hashResetToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
 
 /**
  * Compares two one-time codes without leaking their contents through timing.

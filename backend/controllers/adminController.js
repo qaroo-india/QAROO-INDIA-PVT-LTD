@@ -10,6 +10,8 @@ import {
   sendAdminVerificationOTPEmail,
   sendVerificationSuccessEmail,
 } from '../services/emailService.js';
+import { issueResetToken } from '../utils/resetToken.js';
+import { clientUrl } from '../config/site.js';
 
 const listAdmins = async (req, res, next) => {
   try {
@@ -149,7 +151,6 @@ const createAdmin = async (req, res, next) => {
       verificationOTP: otp,
       verificationOTPExpires: new Date(Date.now() + 10 * 60 * 1000),
       // Temporary plaintext copy used for the confirmation email sent after verification.
-      initialPassword: password,
       createdBy: req.admin?._id || null,
     });
 
@@ -199,8 +200,7 @@ const sendAdminOTP = async (req, res, next) => {
 
 const verifyAdmin = async (req, res, next) => {
   try {
-    // +initialPassword so we can include the credentials in the confirmation email.
-    const admin = await Admin.findById(req.params.id).select('+initialPassword');
+    const admin = await Admin.findById(req.params.id);
     if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' });
     if (admin.isEmailVerified) {
       return res.status(400).json({ success: false, message: 'This admin is already verified' });
@@ -215,18 +215,22 @@ const verifyAdmin = async (req, res, next) => {
     admin.isEmailVerified = true;
     admin.verificationOTP = null;
     admin.verificationOTPExpires = null;
+
+    // The new admin chooses their own password from a single-use link, rather
+    // than being emailed the one the Super Admin typed. That password is still
+    // a valid login - it was hashed at creation - so nothing is lost if it was
+    // handed over in person; it is simply never stored in the clear or put in
+    // an inbox.
+    const rawToken = issueResetToken(admin);
     await admin.save();
-    // Confirmation email to the NEW user with their login credentials.
-    const creds = admin.initialPassword;
+
+    const setPasswordUrl = clientUrl(`/admin/reset-password?token=${rawToken}`);
     try {
-      const sent = await sendVerificationSuccessEmail(admin.email, admin.name, creds);
+      const sent = await sendVerificationSuccessEmail(admin.email, admin.name, setPasswordUrl);
       console.log(`[Confirm email] To: ${admin.email} sent: ${!sent.skipped}`);
     } catch (err) {
       console.error('Failed to send verification success email:', err.message);
     }
-    // Clear the temporary plaintext credential now that the email has been attempted.
-    admin.initialPassword = '';
-    await admin.save();
     res.json({ success: true, message: `${admin.name} is now verified and can sign in.`, data: { admin } });
   } catch (err) {
     next(err);

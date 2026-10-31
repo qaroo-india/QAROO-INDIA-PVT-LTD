@@ -884,3 +884,59 @@ test('the backend no longer imports frontend source at runtime', async () => {
   assert.deepEqual(offenders, [],
     `these files are reachable from app.js but import outside backend/:\n  ${offenders.join('\n  ')}`);
 });
+
+// --------------------------------- admin onboarding without a plaintext ------
+
+// A new admin used to be emailed the password the Super Admin typed, which also
+// meant storing it in the clear on the document until verification. Verification
+// now issues a single-use set-password link instead.
+
+test('creating an admin never stores the password in the clear', async () => {
+  const c = await loginAs(SUPER);
+  const res = await c('POST', '/api/admins', {
+    name: 'Onboarded',
+    email: 'onboarded@test.local',
+    password: 'TypedByBoss!234',
+    role: 'admin',
+    permissions: ['learning.read'],
+  });
+  assert.equal(res.status, 201, JSON.stringify(res.data));
+
+  // Read the raw document, bypassing toJSON and any select:false.
+  const raw = await mongoose.connection.db
+    .collection('admins')
+    .findOne({ email: 'onboarded@test.local' });
+
+  assert.ok(raw, 'the admin should exist');
+  assert.equal(raw.initialPassword, undefined, 'there must be no initialPassword field at all');
+  // Nothing anywhere on the document may equal the typed password.
+  assert.ok(!JSON.stringify(raw).includes('TypedByBoss!234'),
+    'the typed password must not appear in the stored document');
+  // The hash is of course there, and is a hash.
+  assert.match(raw.password, /^\$2[aby]\$/, 'the password should be bcrypt-hashed');
+});
+
+test('verifying an admin issues a single-use set-password link', async () => {
+  const before = await Admin.findOne({ email: 'onboarded@test.local' })
+    .select('+resetTokenHash +resetTokenExpires');
+  assert.equal(before.resetTokenHash, null, 'no token before verification');
+  const otp = before.verificationOTP;
+  assert.match(String(otp), /^\d{6}$/, 'a verification OTP should have been set');
+
+  const c = await loginAs(SUPER);
+  const res = await c('POST', `/api/admins/${before._id}/verify`, { otp });
+  assert.equal(res.status, 200, JSON.stringify(res.data));
+
+  const after = await Admin.findOne({ email: 'onboarded@test.local' })
+    .select('+resetTokenHash +resetTokenExpires');
+  assert.equal(after.isEmailVerified, true, 'the admin should now be verified');
+  assert.match(String(after.resetTokenHash), /^[0-9a-f]{64}$/,
+    'verification should leave a reset-token digest, not a plaintext password');
+  assert.ok(after.resetTokenExpires > new Date(), 'the link should be in date');
+
+  // The emailed link carries the raw token, so the digest must not be usable
+  // as the token itself.
+  const reuse = await client()('POST', `/api/auth/reset-password/${after.resetTokenHash}`,
+    { password: 'ShouldNotWork!1' });
+  assert.equal(reuse.status, 400, 'the stored digest must not work as the token');
+});

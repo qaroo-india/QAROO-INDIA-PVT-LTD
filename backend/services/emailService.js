@@ -87,20 +87,44 @@ export async function sendAdminVerificationOTPEmail(creatorEmail, creatorName, u
 
 // Sent to the NEW user after the Super Admin successfully verifies their account via OTP.
 // Includes the login credentials (username + password) so the user can sign in.
-export async function sendVerificationSuccessEmail(email, name, initialPassword) {
+export async function sendVerificationSuccessEmail(email, name, setPasswordUrl) {
   const loginUrl = clientUrl('/admin/login');
-  const subject = 'Your Qaroo Admin account is verified - sign in with these credentials';
-  const cred =
-    initialPassword
-      ? `\n\nUsername: ${email}\nPassword: ${initialPassword}\n`
-      : '';
-  const text = `Hi ${name || 'there'},\n\nYour Qaroo Admin account has been verified and is now active.\n${cred}\nYou can sign in here:\n${loginUrl}\n\nFor security, change your password after your first login.`;
-  const credHtml =
-    initialPassword
-      ? `<table style="border-collapse:collapse;margin:12px 0;"><tr><td style="padding:8px 14px;border:1px solid #ddd;">Username</td><td style="padding:8px 14px;border:1px solid #ddd;font-weight:bold;">${email}</td></tr><tr><td style="padding:8px 14px;border:1px solid #ddd;">Password</td><td style="padding:8px 14px;border:1px solid #ddd;font-weight:bold;">${initialPassword}</td></tr></table>`
-      : '';
-  const html = `<p>Hi ${name || 'there'},</p><p>Your <strong>Qaroo Admin</strong> account has been verified and is now active.</p>${credHtml}<p>You can sign in here: <a href="${loginUrl}">${loginUrl}</a></p><p><em>For security, change your password after your first login.</em></p>`;
-  return sendMail({ to: email, subject, text, html });
+  const subject = 'Your Qaroo Admin account is verified - set your password';
+
+  // A link, never the password itself. Emailing a password means it lives in
+  // two mailboxes and any forward or breach of either hands over the account,
+  // and it forced the plaintext to be stored until verification. The link is
+  // single-use, expires in an hour, and only its digest is kept.
+  const body = setPasswordUrl
+    ? {
+      text: `Hi ${name || 'there'},
+
+Your Qaroo Admin account has been verified.
+
+Choose your password here (the link works once and expires in 1 hour):
+${setPasswordUrl}
+
+Your username is ${email}.
+
+If the link has expired, use "Forgot password" on the sign-in page:
+${loginUrl}`,
+      html: `<p>Hi ${name || 'there'},</p>`
+          + `<p>Your <strong>Qaroo Admin</strong> account has been verified.</p>`
+          + `<p><a href="${setPasswordUrl}" style="display:inline-block;padding:10px 18px;background:#B3262D;color:#fff;text-decoration:none;border-radius:6px;">Choose your password</a></p>`
+          + `<p style="font-size:13px;color:#555;">The link works once and expires in 1 hour. Your username is <strong>${email}</strong>.</p>`
+          + `<p style="font-size:13px;color:#555;">If it has expired, use &ldquo;Forgot password&rdquo; on the <a href="${loginUrl}">sign-in page</a>.</p>`,
+    }
+    : {
+      text: `Hi ${name || 'there'},
+
+Your Qaroo Admin account has been verified and is now active.
+
+Sign in here:
+${loginUrl}`,
+      html: `<p>Hi ${name || 'there'},</p><p>Your <strong>Qaroo Admin</strong> account has been verified and is now active.</p><p>Sign in here: <a href="${loginUrl}">${loginUrl}</a></p>`,
+    };
+
+  return sendMail({ to: email, subject, text: body.text, html: body.html });
 }
 
 // OTP sent to the user's registered admin email when they change their password.

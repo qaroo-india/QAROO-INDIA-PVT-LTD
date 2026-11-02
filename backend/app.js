@@ -25,6 +25,8 @@ import compression from 'compression';
 
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import { apiLimiter, authLimiter, writeLimiter } from './middleware/rateLimiters.js';
+import { connectLazy } from './config/db.js';
+import validateEnv from './config/validateEnv.js';
 
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -54,15 +56,34 @@ app.use(
 );
 app.use(compression());
 
+// On Vercel (or when VERCEL env is set), validate environment once per cold start.
+let vercelEnvError = null;
+if (process.env.VERCEL) {
+  const { errors, warnings } = validateEnv();
+  for (const w of warnings) console.warn(`[env] ${w}`);
+  if (errors.length) {
+    vercelEnvError = errors.join('; ');
+    console.error(`[env] Configuration error(s): ${vercelEnvError}`);
+  }
+}
+
 // Allow a comma-separated CLIENT_URL list (or a single origin) while keeping
 // credentials-based CORS locked to explicitly-listed origins. Read per request
 // rather than at import time so a serverless cold start always sees the current
 // environment.
-const allowedOrigins = () =>
-  String(process.env.CLIENT_URL || 'http://localhost:5173')
+const allowedOrigins = () => {
+  const origins = String(process.env.CLIENT_URL || 'http://localhost:5173')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+  if (process.env.VERCEL_URL) {
+    origins.push(`https://${process.env.VERCEL_URL}`);
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+  return origins;
+};
 
 app.use(
   cors({
@@ -91,6 +112,28 @@ app.use(cookieParser());
 app.get('/api/health', (req, res) =>
   res.json({ success: true, message: 'Qaroo India Private Limited CMS API is running' })
 );
+
+// On Vercel / serverless runtime, connect lazily before handling requests.
+if (process.env.VERCEL) {
+  app.use(async (req, res, next) => {
+    if (vercelEnvError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server is misconfigured. See the deployment logs.',
+      });
+    }
+    try {
+      await connectLazy();
+      next();
+    } catch (err) {
+      console.error(`[db] ${err.message}`);
+      return res.status(503).json({
+        success: false,
+        message: 'Database unavailable. Please try again shortly.',
+      });
+    }
+  });
+}
 
 app.use('/api', apiLimiter);
 

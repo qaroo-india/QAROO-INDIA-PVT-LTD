@@ -474,12 +474,14 @@ export default function NavigationBar() {
             position: absolute;
             left: 50%;
             top: 100%;
+            transform: translate(-50%, 0);
             margin-top: 2px;
             background: #ffffff;
             border: 1px solid var(--eduact-soft4);
             border-radius: 14px;
             box-shadow: 0 20px 50px rgba(23, 42, 70, 0.15);
             padding: 12px;
+            min-width: 220px;
             z-index: 1050;
             animation: desktopDropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           }
@@ -510,7 +512,8 @@ export default function NavigationBar() {
           .navbar > .container {
             position: relative !important;
           }
-          .navbar-collapse:not(.show) {
+          .navbar-collapse:not(.show),
+          .navbar-collapse.collapsing {
             display: none !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -518,6 +521,13 @@ export default function NavigationBar() {
             box-shadow: none !important;
             height: 0 !important;
             overflow: hidden !important;
+          }
+          .dropdown-menu:not(.show) {
+            display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
           }
           .navbar-collapse.show {
             position: absolute !important;

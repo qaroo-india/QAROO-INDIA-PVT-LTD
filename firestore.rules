@@ -1,0 +1,834 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Application: QAROO INDIA PVT LTD (Project ID: crm-qaroo)
+//
+// 1. Collection: admins
+//    Document ID: {adminId} (UID or UUID)
+//    Fields:
+//      - name: string (required, 1-100 chars)
+//      - email: string (required, valid email, <= 200 chars)
+//      - password: string (optional, hashed string, <= 255 chars)
+//      - role: string (required, 'superadmin' | 'admin')
+//      - permissions: list (optional, list of permission strings, <= 50 items)
+//      - isEmailVerified: bool (required)
+//      - isApproved: bool (required)
+//      - isDisabled: bool (optional)
+//      - verificationToken: string (optional, <= 255 chars)
+//      - verificationTokenExpires: timestamp (optional)
+//      - verificationOTP: string (optional, <= 20 chars)
+//      - verificationOTPExpires: timestamp (optional)
+//      - passwordOTP: string (optional, <= 20 chars)
+//      - passwordOTPExpires: timestamp (optional)
+//      - passwordOTPAttempts: number (optional)
+//      - resetTokenHash: string (optional, <= 255 chars)
+//      - resetTokenExpires: timestamp (optional)
+//      - passwordChangedAt: timestamp (optional)
+//      - bootstrap: bool (optional)
+//      - createdBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 2. Collection: business_solutions
+//    Document ID: {solutionId} (UUID or slug)
+//    Fields:
+//      - title: string (required, 1-200 chars)
+//      - pageName: string (optional, <= 200 chars)
+//      - slug: string (required, lowercase alphanumeric with dashes, 1-200 chars)
+//      - shortDescription: string (optional, <= 2000 chars)
+//      - fullDescription: string (optional, <= 25000 chars)
+//      - image: string (optional, url or relative path, <= 2000 chars)
+//      - brochure: string (optional, url or relative path, <= 2000 chars)
+//      - status: string (required, 'published' | 'draft')
+//      - displayOrder: number (optional, >= 0)
+//      - services, features, benefits, useCases, audience, problems, solutions, techniques, process, industries, whyChoose, faq, seoKeywords: list (optional, <= 50 items each)
+//      - cta, keyword, seoTitle, ogTitle: string (optional, <= 200 chars each)
+//      - seoDescription, ogDescription: string (optional, <= 1000 chars each)
+//      - ogImage, canonicalUrl: string (optional, <= 2000 chars each)
+//      - createdBy, updatedBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 3. Collection: learning_programs
+//    Document ID: {programId} (UUID or slug)
+//    Fields:
+//      - title: string (required, 1-200 chars)
+//      - pageName: string (optional, <= 200 chars)
+//      - slug: string (required, lowercase alphanumeric with dashes, 1-200 chars)
+//      - desc, shortDescription: string (optional, <= 2000 chars)
+//      - fullDescription: string (optional, <= 25000 chars)
+//      - category: string (optional, <= 100 chars)
+//      - image, brochure: string (optional, <= 2000 chars)
+//      - status: string (required, 'published' | 'draft')
+//      - displayOrder: number (optional, >= 0)
+//      - skills, highlights, learn, tools, modules, careers, audience, benefits, modes, faq, seoKeywords: list (optional, <= 50 items each)
+//      - certification, placement, cta: string (optional, <= 1000 chars each)
+//      - keyword, seoTitle, ogTitle: string (optional, <= 200 chars each)
+//      - seoDescription, ogDescription: string (optional, <= 1000 chars each)
+//      - ogImage, canonicalUrl: string (optional, <= 2000 chars each)
+//      - createdBy, updatedBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 4. Collection: job_postings
+//    Document ID: {jobId} (UUID or slug)
+//    Fields:
+//      - title: string (required, 1-200 chars)
+//      - pageName: string (optional, <= 200 chars)
+//      - slug: string (required, lowercase alphanumeric with dashes, 1-200 chars)
+//      - status: string (required, 'published' | 'draft')
+//      - displayOrder: number (optional, >= 0)
+//      - jobType, experience, department, location: string (optional, <= 100 chars each)
+//      - employmentType: string (required, 'FULL_TIME' | 'PART_TIME' | 'CONTRACTOR' | 'TEMPORARY' | 'INTERN' | 'OTHER')
+//      - overview: string (optional, <= 5000 chars)
+//      - responsibilities, techStack, requiredSkills, preferredSkills, qualifications, trainingAreas, idealCandidate, benefits, knowledgeAreas, seoKeywords: list (optional, <= 50 items each)
+//      - note: string (optional, <= 2000 chars)
+//      - keyword, seoTitle, ogTitle: string (optional, <= 200 chars each)
+//      - seoDescription, ogDescription: string (optional, <= 1000 chars each)
+//      - ogImage, canonicalUrl: string (optional, <= 2000 chars each)
+//      - createdBy, updatedBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 5. Collection: csr_projects
+//    Document ID: {projectId} (UUID or string)
+//    Fields:
+//      - year: string (required, 1-30 chars, e.g. '2023-2024')
+//      - tag: string (optional, <= 100 chars)
+//      - title: string (required, 1-200 chars)
+//      - desc: string (optional, <= 5000 chars)
+//      - partner, location, beneficiaries: string (optional, <= 200 chars each)
+//      - image: string (optional, <= 2000 chars)
+//      - status: string (required, 'published' | 'draft')
+//      - createdBy, updatedBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 6. Collection: mous
+//    Document ID: {mouId} (UUID or string)
+//    Fields:
+//      - name: string (required, 1-200 chars)
+//      - tag: string (required, 1-100 chars)
+//      - blurb: string (optional, <= 2000 chars)
+//      - logo: string (optional, <= 2000 chars)
+//      - images: list (optional, <= 30 items)
+//      - sections: list (optional, list of section maps, <= 30 items)
+//      - status: string (required, 'published' | 'draft')
+//      - createdBy, updatedBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 7. Collection: page_contents
+//    Document ID: {pageId} ('home' | 'about' | 'business' | 'learning' | 'csr' | 'contact' | 'mou' | 'footer' | 'careers')
+//    Fields:
+//      - page: string (required, must match allowed page key)
+//      - data: map (required, content structure map)
+//      - updatedBy: string (optional, <= 100 chars)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 8. Collection: contact_messages
+//    Document ID: {messageId} (UUID or string)
+//    Fields:
+//      - name: string (required, 1-120 chars)
+//      - email: string (required, valid email, <= 200 chars)
+//      - phone: string (optional, <= 40 chars)
+//      - interest: string (optional, <= 120 chars)
+//      - subject: string (optional, <= 200 chars)
+//      - message: string (optional, <= 5000 chars)
+//      - source: string (required, 'contact' | 'brochure')
+//      - resource: string (optional, <= 160 chars)
+//      - status: string (optional, 'new' | 'read' | 'resolved')
+//      - remarks: string (optional, <= 2000 chars, admin-only)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 9. Collection: job_applications
+//    Document ID: {applicationId} (UUID or string)
+//    Fields:
+//      - job: string (optional, job posting ID, <= 100 chars)
+//      - jobTitle: string (optional, <= 200 chars)
+//      - jobSlug: string (optional, <= 200 chars)
+//      - name: string (required, 1-120 chars)
+//      - fatherName: string (optional, <= 120 chars)
+//      - email: string (required, valid email, <= 200 chars)
+//      - phone: string (required, 1-40 chars)
+//      - parentMobile: string (optional, <= 40 chars)
+//      - address: string (optional, <= 1000 chars)
+//      - qualification: string (optional, <= 500 chars)
+//      - experience: string (optional, <= 2000 chars)
+//      - declaration: bool (required, must be true)
+//      - resumeUrl: string (optional, <= 2000 chars)
+//      - resumePath: string (optional, <= 500 chars)
+//      - resumeFileId: string (optional, <= 100 chars)
+//      - resumeMime: string (optional, <= 100 chars)
+//      - resumeName: string (optional, <= 255 chars)
+//      - status: string (optional, 'new' | 'reviewed' | 'scheduled' | 'rejected')
+//      - attendance: string (optional, '', 'yes' | 'no')
+//      - notes: string (optional, <= 5000 chars)
+//      - interviewDate: timestamp (optional)
+//      - createdAt: timestamp (optional, immutable)
+//      - updatedAt: timestamp (optional)
+//
+// 10. Collection: resume_files
+//     Document ID: {fileId} (UUID or string)
+//     Fields:
+//       - data: bytes or string (optional, base64 payload)
+//       - mime: string (required, allowed resume document types)
+//       - size: number (required, <= 10MB)
+//       - ext: string (required, 'pdf' | 'doc' | 'docx')
+//       - createdAt: timestamp (optional, immutable)
+//       - updatedAt: timestamp (optional)
+//
+// 11. Collection: client_errors
+//     Document ID: {errorId} (UUID or string)
+//     Fields:
+//       - message: string (required, 1-2000 chars)
+//       - stack: string (optional, <= 8000 chars)
+//       - url: string (optional, <= 2000 chars)
+//       - userAgent: string (optional, <= 500 chars)
+//       - extra: map (optional, error context map)
+//       - createdAt: timestamp (optional, immutable)
+//       - updatedAt: timestamp (optional)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if user is authenticated via Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource by matching UID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user is owner based on document's uid field
+    function isDocOwner() {
+      return isAuthenticated() && ('uid' in resource.data) && request.auth.uid == resource.data.uid;
+    }
+
+    // Verify UID field has not been tampered with on create
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
+    }
+
+    // Ensure UID field is not modified on update
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    // Check if the current user is an active Administrator
+    function isAdmin() {
+      return isAuthenticated() && (
+        // Custom claim role
+        request.auth.token.admin == true ||
+        request.auth.token.role in ['admin', 'superadmin'] ||
+        // Document-backed role in admins collection
+        (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isApproved == true &&
+          (!('isDisabled' in get(/databases/$(database)/documents/admins/$(request.auth.uid)).data) ||
+           get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isDisabled != true)
+        ) ||
+        // Verified bootstrap emergency administrator
+        (
+          request.auth.token.email_verified == true &&
+          request.auth.token.email in ['admin@qaroo.in', 'superadmin@qaroo.in']
+        )
+      );
+    }
+
+    // Check if the current user is a Super Administrator
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'superadmin' ||
+        (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'superadmin' &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isApproved == true &&
+          (!('isDisabled' in get(/databases/$(database)/documents/admins/$(request.auth.uid)).data) ||
+           get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isDisabled != true)
+        ) ||
+        (
+          request.auth.token.email_verified == true &&
+          request.auth.token.email in ['superadmin@qaroo.in']
+        )
+      );
+    }
+
+    // Validate that required keys exist in request data
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that document contains only allowed fields (Strict Schema Enforcement)
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Ensure specified immutable fields cannot be changed on update
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate required string field bounds
+    function validStringLength(data, field, minLen, maxLen) {
+      return (field in data) &&
+        data[field] is string &&
+        data[field].size() >= minLen &&
+        data[field].size() <= maxLen;
+    }
+
+    // Validate optional string field bounds (if present, must satisfy criteria)
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+        (data[field] is string &&
+         data[field].size() >= minLen &&
+         data[field].size() <= maxLen);
+    }
+
+    // Validate optional list length (enforces size limits against DoS)
+    function isValidOptionalList(data, field, maxSize) {
+      return !(field in data) ||
+        (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    // Validate optional numeric field
+    function isValidOptionalNumber(data, field, minVal) {
+      return !(field in data) ||
+        (data[field] is number && data[field] >= minVal);
+    }
+
+    // Validate optional timestamp field
+    function isValidOptionalTimestamp(data, field) {
+      return !(field in data) || data[field] is timestamp;
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate URL-safe lowercase slug format
+    function isValidSlug(slug) {
+      return slug is string &&
+        slug.size() >= 1 &&
+        slug.size() <= 200 &&
+        slug.matches("^[a-z0-9-]+$");
+    }
+
+    // Validate recent timestamp within 5 minutes
+    function isRecent(time) {
+      return time is timestamp &&
+        time > request.time - duration.value(5, 'm') &&
+        time <= request.time;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // 1. Validator for Admin documents
+    function isValidAdmin(data) {
+      return hasOnlyAllowedFields([
+        'name', 'email', 'password', 'role', 'permissions',
+        'isEmailVerified', 'isApproved', 'isDisabled',
+        'verificationToken', 'verificationTokenExpires',
+        'verificationOTP', 'verificationOTPExpires',
+        'passwordOTP', 'passwordOTPExpires', 'passwordOTPAttempts',
+        'resetTokenHash', 'resetTokenExpires', 'passwordChangedAt',
+        'bootstrap', 'createdBy', 'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['name', 'email', 'role', 'isEmailVerified', 'isApproved']) &&
+      validStringLength(data, 'name', 1, 100) &&
+      isValidEmail(data.email) &&
+      data.email.size() <= 200 &&
+      data.role in ['superadmin', 'admin'] &&
+      data.isEmailVerified is bool &&
+      data.isApproved is bool &&
+      isValidOptionalString(data, 'password', 0, 255) &&
+      isValidOptionalList(data, 'permissions', 50) &&
+      (!('isDisabled' in data) || data.isDisabled is bool) &&
+      isValidOptionalString(data, 'verificationToken', 0, 255) &&
+      isValidOptionalString(data, 'verificationOTP', 0, 20) &&
+      isValidOptionalString(data, 'passwordOTP', 0, 20) &&
+      isValidOptionalString(data, 'resetTokenHash', 0, 255) &&
+      (!('passwordOTPAttempts' in data) || data.passwordOTPAttempts is number) &&
+      (!('bootstrap' in data) || data.bootstrap is bool) &&
+      isValidOptionalString(data, 'createdBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'verificationTokenExpires') &&
+      isValidOptionalTimestamp(data, 'verificationOTPExpires') &&
+      isValidOptionalTimestamp(data, 'passwordOTPExpires') &&
+      isValidOptionalTimestamp(data, 'resetTokenExpires') &&
+      isValidOptionalTimestamp(data, 'passwordChangedAt') &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 2. Validator for Business Solutions
+    function isValidBusinessSolution(data) {
+      return hasOnlyAllowedFields([
+        'title', 'pageName', 'slug', 'shortDescription', 'fullDescription',
+        'image', 'brochure', 'status', 'displayOrder', 'services', 'features',
+        'benefits', 'useCases', 'audience', 'problems', 'solutions', 'techniques',
+        'process', 'industries', 'whyChoose', 'faq', 'cta', 'keyword',
+        'seoTitle', 'seoDescription', 'seoKeywords', 'ogTitle', 'ogDescription',
+        'ogImage', 'canonicalUrl', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['title', 'slug', 'status']) &&
+      validStringLength(data, 'title', 1, 200) &&
+      isValidSlug(data.slug) &&
+      data.status in ['published', 'draft'] &&
+      isValidOptionalString(data, 'pageName', 0, 200) &&
+      isValidOptionalString(data, 'shortDescription', 0, 2000) &&
+      isValidOptionalString(data, 'fullDescription', 0, 25000) &&
+      isValidOptionalString(data, 'image', 0, 2000) &&
+      isValidOptionalString(data, 'brochure', 0, 2000) &&
+      isValidOptionalNumber(data, 'displayOrder', 0) &&
+      isValidOptionalList(data, 'services', 50) &&
+      isValidOptionalList(data, 'features', 50) &&
+      isValidOptionalList(data, 'benefits', 50) &&
+      isValidOptionalList(data, 'useCases', 50) &&
+      isValidOptionalList(data, 'audience', 50) &&
+      isValidOptionalList(data, 'problems', 50) &&
+      isValidOptionalList(data, 'solutions', 50) &&
+      isValidOptionalList(data, 'techniques', 50) &&
+      isValidOptionalList(data, 'process', 50) &&
+      isValidOptionalList(data, 'industries', 50) &&
+      isValidOptionalList(data, 'whyChoose', 50) &&
+      isValidOptionalList(data, 'faq', 50) &&
+      isValidOptionalString(data, 'cta', 0, 1000) &&
+      isValidOptionalString(data, 'keyword', 0, 200) &&
+      isValidOptionalString(data, 'seoTitle', 0, 200) &&
+      isValidOptionalString(data, 'seoDescription', 0, 1000) &&
+      isValidOptionalList(data, 'seoKeywords', 50) &&
+      isValidOptionalString(data, 'ogTitle', 0, 200) &&
+      isValidOptionalString(data, 'ogDescription', 0, 1000) &&
+      isValidOptionalString(data, 'ogImage', 0, 2000) &&
+      isValidOptionalString(data, 'canonicalUrl', 0, 2000) &&
+      isValidOptionalString(data, 'createdBy', 0, 100) &&
+      isValidOptionalString(data, 'updatedBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 3. Validator for Learning Programs
+    function isValidLearningProgram(data) {
+      return hasOnlyAllowedFields([
+        'title', 'pageName', 'slug', 'desc', 'shortDescription', 'fullDescription',
+        'skills', 'category', 'image', 'brochure', 'status', 'displayOrder',
+        'highlights', 'learn', 'tools', 'modules', 'careers', 'audience',
+        'benefits', 'certification', 'placement', 'modes', 'faq', 'cta',
+        'keyword', 'seoTitle', 'seoDescription', 'seoKeywords', 'ogTitle',
+        'ogDescription', 'ogImage', 'canonicalUrl', 'createdBy', 'updatedBy',
+        'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['title', 'slug', 'status']) &&
+      validStringLength(data, 'title', 1, 200) &&
+      isValidSlug(data.slug) &&
+      data.status in ['published', 'draft'] &&
+      isValidOptionalString(data, 'pageName', 0, 200) &&
+      isValidOptionalString(data, 'desc', 0, 2000) &&
+      isValidOptionalString(data, 'shortDescription', 0, 2000) &&
+      isValidOptionalString(data, 'fullDescription', 0, 25000) &&
+      isValidOptionalString(data, 'category', 0, 100) &&
+      isValidOptionalString(data, 'image', 0, 2000) &&
+      isValidOptionalString(data, 'brochure', 0, 2000) &&
+      isValidOptionalNumber(data, 'displayOrder', 0) &&
+      isValidOptionalList(data, 'skills', 50) &&
+      isValidOptionalList(data, 'highlights', 50) &&
+      isValidOptionalList(data, 'learn', 50) &&
+      isValidOptionalList(data, 'tools', 50) &&
+      isValidOptionalList(data, 'modules', 50) &&
+      isValidOptionalList(data, 'careers', 50) &&
+      isValidOptionalList(data, 'audience', 50) &&
+      isValidOptionalList(data, 'benefits', 50) &&
+      isValidOptionalString(data, 'certification', 0, 1000) &&
+      isValidOptionalString(data, 'placement', 0, 1000) &&
+      isValidOptionalList(data, 'modes', 50) &&
+      isValidOptionalList(data, 'faq', 50) &&
+      isValidOptionalString(data, 'cta', 0, 1000) &&
+      isValidOptionalString(data, 'keyword', 0, 200) &&
+      isValidOptionalString(data, 'seoTitle', 0, 200) &&
+      isValidOptionalString(data, 'seoDescription', 0, 1000) &&
+      isValidOptionalList(data, 'seoKeywords', 50) &&
+      isValidOptionalString(data, 'ogTitle', 0, 200) &&
+      isValidOptionalString(data, 'ogDescription', 0, 1000) &&
+      isValidOptionalString(data, 'ogImage', 0, 2000) &&
+      isValidOptionalString(data, 'canonicalUrl', 0, 2000) &&
+      isValidOptionalString(data, 'createdBy', 0, 100) &&
+      isValidOptionalString(data, 'updatedBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 4. Validator for Job Postings
+    function isValidJobPosting(data) {
+      return hasOnlyAllowedFields([
+        'title', 'pageName', 'slug', 'status', 'displayOrder',
+        'jobType', 'experience', 'department', 'location', 'employmentType',
+        'overview', 'responsibilities', 'techStack', 'requiredSkills',
+        'preferredSkills', 'qualifications', 'trainingAreas', 'idealCandidate',
+        'benefits', 'knowledgeAreas', 'note', 'keyword', 'seoTitle',
+        'seoDescription', 'seoKeywords', 'ogTitle', 'ogDescription',
+        'ogImage', 'canonicalUrl', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['title', 'slug', 'status', 'employmentType']) &&
+      validStringLength(data, 'title', 1, 200) &&
+      isValidSlug(data.slug) &&
+      data.status in ['published', 'draft'] &&
+      data.employmentType in ['FULL_TIME', 'PART_TIME', 'CONTRACTOR', 'TEMPORARY', 'INTERN', 'OTHER'] &&
+      isValidOptionalString(data, 'pageName', 0, 200) &&
+      isValidOptionalNumber(data, 'displayOrder', 0) &&
+      isValidOptionalString(data, 'jobType', 0, 100) &&
+      isValidOptionalString(data, 'experience', 0, 100) &&
+      isValidOptionalString(data, 'department', 0, 100) &&
+      isValidOptionalString(data, 'location', 0, 100) &&
+      isValidOptionalString(data, 'overview', 0, 5000) &&
+      isValidOptionalList(data, 'responsibilities', 50) &&
+      isValidOptionalList(data, 'techStack', 50) &&
+      isValidOptionalList(data, 'requiredSkills', 50) &&
+      isValidOptionalList(data, 'preferredSkills', 50) &&
+      isValidOptionalList(data, 'qualifications', 50) &&
+      isValidOptionalList(data, 'trainingAreas', 50) &&
+      isValidOptionalList(data, 'idealCandidate', 50) &&
+      isValidOptionalList(data, 'benefits', 50) &&
+      isValidOptionalList(data, 'knowledgeAreas', 50) &&
+      isValidOptionalString(data, 'note', 0, 2000) &&
+      isValidOptionalString(data, 'keyword', 0, 200) &&
+      isValidOptionalString(data, 'seoTitle', 0, 200) &&
+      isValidOptionalString(data, 'seoDescription', 0, 1000) &&
+      isValidOptionalList(data, 'seoKeywords', 50) &&
+      isValidOptionalString(data, 'ogTitle', 0, 200) &&
+      isValidOptionalString(data, 'ogDescription', 0, 1000) &&
+      isValidOptionalString(data, 'ogImage', 0, 2000) &&
+      isValidOptionalString(data, 'canonicalUrl', 0, 2000) &&
+      isValidOptionalString(data, 'createdBy', 0, 100) &&
+      isValidOptionalString(data, 'updatedBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 5. Validator for CSR Projects
+    function isValidCSRProject(data) {
+      return hasOnlyAllowedFields([
+        'year', 'tag', 'title', 'desc', 'partner', 'location',
+        'beneficiaries', 'image', 'status', 'createdBy', 'updatedBy',
+        'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['year', 'title', 'status']) &&
+      validStringLength(data, 'year', 1, 30) &&
+      validStringLength(data, 'title', 1, 200) &&
+      data.status in ['published', 'draft'] &&
+      isValidOptionalString(data, 'tag', 0, 100) &&
+      isValidOptionalString(data, 'desc', 0, 5000) &&
+      isValidOptionalString(data, 'partner', 0, 200) &&
+      isValidOptionalString(data, 'location', 0, 200) &&
+      isValidOptionalString(data, 'beneficiaries', 0, 200) &&
+      isValidOptionalString(data, 'image', 0, 2000) &&
+      isValidOptionalString(data, 'createdBy', 0, 100) &&
+      isValidOptionalString(data, 'updatedBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 6. Validator for MOUs
+    function isValidMOU(data) {
+      return hasOnlyAllowedFields([
+        'name', 'tag', 'blurb', 'logo', 'images', 'sections',
+        'status', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['name', 'tag', 'status']) &&
+      validStringLength(data, 'name', 1, 200) &&
+      validStringLength(data, 'tag', 1, 100) &&
+      data.status in ['published', 'draft'] &&
+      isValidOptionalString(data, 'blurb', 0, 2000) &&
+      isValidOptionalString(data, 'logo', 0, 2000) &&
+      isValidOptionalList(data, 'images', 30) &&
+      isValidOptionalList(data, 'sections', 30) &&
+      isValidOptionalString(data, 'createdBy', 0, 100) &&
+      isValidOptionalString(data, 'updatedBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 7. Validator for Page Contents
+    function isValidPageContent(data) {
+      return hasOnlyAllowedFields(['page', 'data', 'updatedBy', 'createdAt', 'updatedAt']) &&
+      hasRequiredFields(['page', 'data']) &&
+      (data.page in ['home', 'about', 'business', 'learning', 'csr', 'contact', 'mou', 'footer', 'careers']) &&
+      data.data is map &&
+      isValidOptionalString(data, 'updatedBy', 0, 100) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 8. Validator for Contact Messages
+    function isValidContactMessage(data) {
+      return hasOnlyAllowedFields([
+        'name', 'email', 'phone', 'interest', 'subject', 'message',
+        'source', 'resource', 'status', 'remarks', 'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['name', 'email', 'source']) &&
+      validStringLength(data, 'name', 1, 120) &&
+      isValidEmail(data.email) &&
+      data.email.size() <= 200 &&
+      data.source in ['contact', 'brochure'] &&
+      isValidOptionalString(data, 'phone', 0, 40) &&
+      isValidOptionalString(data, 'interest', 0, 120) &&
+      isValidOptionalString(data, 'subject', 0, 200) &&
+      isValidOptionalString(data, 'message', 0, 5000) &&
+      isValidOptionalString(data, 'resource', 0, 160) &&
+      (!('status' in data) || data.status in ['new', 'read', 'resolved']) &&
+      isValidOptionalString(data, 'remarks', 0, 2000) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 9. Validator for Job Applications
+    function isValidJobApplication(data) {
+      return hasOnlyAllowedFields([
+        'job', 'jobTitle', 'jobSlug', 'name', 'fatherName', 'email', 'phone',
+        'parentMobile', 'address', 'qualification', 'experience', 'declaration',
+        'resumeUrl', 'resumePath', 'resumeFileId', 'resumeMime', 'resumeName',
+        'status', 'attendance', 'notes', 'interviewDate', 'createdAt', 'updatedAt'
+      ]) &&
+      hasRequiredFields(['name', 'email', 'phone', 'declaration']) &&
+      validStringLength(data, 'name', 1, 120) &&
+      isValidEmail(data.email) &&
+      data.email.size() <= 200 &&
+      validStringLength(data, 'phone', 1, 40) &&
+      data.declaration == true &&
+      isValidOptionalString(data, 'job', 0, 100) &&
+      isValidOptionalString(data, 'jobTitle', 0, 200) &&
+      isValidOptionalString(data, 'jobSlug', 0, 200) &&
+      isValidOptionalString(data, 'fatherName', 0, 120) &&
+      isValidOptionalString(data, 'parentMobile', 0, 40) &&
+      isValidOptionalString(data, 'address', 0, 1000) &&
+      isValidOptionalString(data, 'qualification', 0, 500) &&
+      isValidOptionalString(data, 'experience', 0, 2000) &&
+      isValidOptionalString(data, 'resumeUrl', 0, 2000) &&
+      isValidOptionalString(data, 'resumePath', 0, 500) &&
+      isValidOptionalString(data, 'resumeFileId', 0, 100) &&
+      isValidOptionalString(data, 'resumeMime', 0, 100) &&
+      isValidOptionalString(data, 'resumeName', 0, 255) &&
+      (!('status' in data) || data.status in ['new', 'reviewed', 'scheduled', 'rejected']) &&
+      isValidOptionalString(data, 'attendance', 0, 20) &&
+      isValidOptionalString(data, 'notes', 0, 5000) &&
+      isValidOptionalTimestamp(data, 'interviewDate') &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 10. Validator for Resume Files
+    function isValidResumeFile(data) {
+      return hasOnlyAllowedFields(['data', 'mime', 'size', 'ext', 'createdAt', 'updatedAt']) &&
+      hasRequiredFields(['mime', 'size', 'ext']) &&
+      data.mime in ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] &&
+      data.size is number && data.size > 0 && data.size <= 10485760 &&
+      data.ext in ['pdf', 'doc', 'docx'] &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+    // 11. Validator for Client Errors
+    function isValidClientError(data) {
+      return hasOnlyAllowedFields(['message', 'stack', 'url', 'userAgent', 'extra', 'createdAt', 'updatedAt']) &&
+      hasRequiredFields(['message']) &&
+      validStringLength(data, 'message', 1, 2000) &&
+      isValidOptionalString(data, 'stack', 0, 8000) &&
+      isValidOptionalString(data, 'url', 0, 2000) &&
+      isValidOptionalString(data, 'userAgent', 0, 500) &&
+      (!('extra' in data) || data.extra is map) &&
+      isValidOptionalTimestamp(data, 'createdAt') &&
+      isValidOptionalTimestamp(data, 'updatedAt');
+    }
+
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // 1. Admin Accounts
+    // Sensitive account credentials, permissions and security tokens
+    match /admins/{adminId} {
+      // Superadmin can inspect all admins; an authenticated admin can view their own profile
+      allow read: if isSuperAdmin() || isOwner(adminId);
+
+      // Only Super Admin can register or approve new administrators
+      allow create: if isSuperAdmin() && isValidAdmin(request.resource.data);
+
+      // Super Admin can update any admin.
+      // An admin can self-update basic profile info but cannot elevate roles, permissions, or approval state
+      allow update: if isValidAdmin(request.resource.data) && (
+        isSuperAdmin() || (
+          isOwner(adminId) &&
+          areImmutableFieldsUnchanged(['role', 'permissions', 'isApproved', 'isDisabled', 'bootstrap', 'email'])
+        )
+      );
+
+      // Super Admin can delete admin accounts, but cannot delete another Super Admin
+      allow delete: if isSuperAdmin() && resource.data.role != 'superadmin';
+    }
+
+    // 2. Business Solutions
+    match /business_solutions/{solutionId} {
+      // Public visitors can only view published solutions. Admins can view both drafts and published
+      allow read: if resource.data.status == 'published' || isAdmin();
+
+      // Content managers / admins can create, update, or remove solutions
+      allow create: if isAdmin() && isValidBusinessSolution(request.resource.data);
+      allow update: if isAdmin() && isValidBusinessSolution(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 3. Learning Programs
+    match /learning_programs/{programId} {
+      // Public visitors can only view published learning programs. Admins can view drafts and published
+      allow read: if resource.data.status == 'published' || isAdmin();
+
+      // Only admins can author, modify, or delete courses
+      allow create: if isAdmin() && isValidLearningProgram(request.resource.data);
+      allow update: if isAdmin() && isValidLearningProgram(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 4. Job Postings
+    match /job_postings/{jobId} {
+      // Public visitors can only browse published vacancies. Admins can view all
+      allow read: if resource.data.status == 'published' || isAdmin();
+
+      // Only authorized admins can manage career opportunities
+      allow create: if isAdmin() && isValidJobPosting(request.resource.data);
+      allow update: if isAdmin() && isValidJobPosting(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 5. CSR Projects
+    match /csr_projects/{projectId} {
+      // Public visitors can view published CSR initiatives. Admins can view all
+      allow read: if resource.data.status == 'published' || isAdmin();
+
+      // Only authorized admins can create, edit, or delete CSR projects
+      allow create: if isAdmin() && isValidCSRProject(request.resource.data);
+      allow update: if isAdmin() && isValidCSRProject(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 6. MOUs & Partnerships
+    match /mous/{mouId} {
+      // Public visitors can view published MOUs. Admins can view all
+      allow read: if resource.data.status == 'published' || isAdmin();
+
+      // Only authorized admins can create, edit, or delete MOUs
+      allow create: if isAdmin() && isValidMOU(request.resource.data);
+      allow update: if isAdmin() && isValidMOU(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 7. Page Content (CMS)
+    match /page_contents/{pageId} {
+      // Public visitors can read marketing and website layout copy
+      allow read: if true;
+
+      // Only authorized admins can update site content
+      allow create: if isAdmin() && isValidPageContent(request.resource.data);
+      allow update: if isAdmin() && isValidPageContent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 8. Contact & Brochure Inquiry Messages
+    match /contact_messages/{messageId} {
+      // Confidential user inquiries and PII - strictly restricted to administrators
+      allow read: if isAdmin();
+
+      // Public visitors can submit contact inquiries or request brochures.
+      // Status must default to 'new', and public submissions cannot include internal admin remarks
+      allow create: if isValidContactMessage(request.resource.data) &&
+        (!('status' in request.resource.data) || request.resource.data.status == 'new') &&
+        (!('remarks' in request.resource.data) || request.resource.data.remarks == '');
+
+      // Only admins can update status or append administrative remarks.
+      // Customer's original inquiry and email are immutable
+      allow update: if isAdmin() &&
+        isValidContactMessage(request.resource.data) &&
+        areImmutableFieldsUnchanged(['name', 'email', 'message', 'source']);
+
+      // Only admins can delete contact records
+      allow delete: if isAdmin();
+    }
+
+    // 9. Job Applications
+    match /job_applications/{applicationId} {
+      // Confidential candidate PII and resumes - strictly restricted to administrators
+      allow read: if isAdmin();
+
+      // Public applicants can submit applications with candidate details.
+      // Applicants cannot self-set stages (status must be 'new') or insert internal evaluation notes
+      allow create: if isValidJobApplication(request.resource.data) &&
+        (!('status' in request.resource.data) || request.resource.data.status == 'new') &&
+        (!('notes' in request.resource.data) || request.resource.data.notes == '') &&
+        (!('attendance' in request.resource.data) || request.resource.data.attendance == '') &&
+        !('interviewDate' in request.resource.data);
+
+      // Only admins can manage applicant status, record attendance, and add recruiter notes.
+      // Applicant's core identity fields and declaration are immutable
+      allow update: if isAdmin() &&
+        isValidJobApplication(request.resource.data) &&
+        areImmutableFieldsUnchanged(['name', 'email', 'phone', 'declaration']);
+
+      // Only admins can delete job application entries
+      allow delete: if isAdmin();
+    }
+
+    // 10. Resume Files (Binary / Base64 Document Storage)
+    match /resume_files/{fileId} {
+      // Resumes contain personal identity information - readable only by admins
+      allow read: if isAdmin();
+
+      // Applicants can upload their resume documents during application submission
+      allow create: if isValidResumeFile(request.resource.data);
+
+      // Only admins can manage or update stored resume records
+      allow update: if isAdmin() && isValidResumeFile(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 11. Client Telemetry & Browser Error Logs
+    match /client_errors/{errorId} {
+      // Telemetry logs are readable only by administrators
+      allow read: if isAdmin();
+
+      // Any browser client can report a runtime error
+      allow create: if isValidClientError(request.resource.data);
+
+      // Error logs are append-only; modification is prohibited
+      allow update: if false;
+
+      // Only admins can purge error logs
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // Default Deny Rule
+    // ===============================================================
+    // All unmatched paths, nested collections, or undefined resources are denied access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -6,10 +6,8 @@ export async function seedAdmin() {
   const password = process.env.ADMIN_PASSWORD || '';
 
   if (!email || !password) {
-    throw new Error(
-      'seedAdmin requires ADMIN_EMAIL and ADMIN_PASSWORD to be set. ' +
-        'Refusing to create a Super Admin with default credentials.'
-    );
+    console.log('[seedAdmin] ADMIN_EMAIL or ADMIN_PASSWORD not set - skipping Super Admin creation.');
+    return null;
   }
   const name = process.env.ADMIN_NAME || 'Qaroo Super Admin';
 

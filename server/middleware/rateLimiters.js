@@ -29,3 +29,10 @@ export const authLimiter = build('auth', 100, 'Too many requests, please try aga
  * but loose enough that ordinary content reads over the same mounts are fine.
  */
 export const writeLimiter = build('write', 300, 'Too many requests, please try again later');
+
+/**
+ * Shared store placeholder for rate limiting across serverless instances.
+ * Falls back to default express-rate-limit in-memory store.
+ */
+export const sharedStore = (_name) => undefined;
+

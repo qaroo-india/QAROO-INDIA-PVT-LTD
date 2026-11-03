@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { sharedStore } from '../middleware/mongoRateLimitStore.js';
+import { sharedStore } from '../middleware/rateLimiters.js';
 import { reportClientError, listClientErrors } from '../controllers/clientErrorController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { requireVerifiedApproved, requireSuperAdmin } from '../middleware/adminMiddleware.js';

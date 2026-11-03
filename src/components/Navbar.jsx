@@ -39,7 +39,6 @@ export default function NavigationBar() {
   const [scrolled, setScrolled] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
-  const [pinned, setPinned] = useState(null);
   const location = useLocation();
 
   const cfg = navLinks || DEFAULT_NAVBAR;
@@ -100,7 +99,6 @@ export default function NavigationBar() {
   const closeAll = () => {
     setExpanded(false);
     setOpenMenu(null);
-    setPinned(null);
   };
 
   useEffect(() => {
@@ -124,33 +122,27 @@ export default function NavigationBar() {
   const navTitleStyle = { fontWeight: 600, fontSize: '14.5px', color: 'var(--eduact-black)' };
 
   const toggleMenu = (menu) => {
-    if (openMenu === menu) {
-      setOpenMenu(null);
-      setPinned(null);
-    } else {
-      setOpenMenu(menu);
-      setPinned(menu);
-    }
+    setOpenMenu((prev) => (prev === menu ? null : menu));
   };
 
   const renderDropdown = (menu, title, wrapperClass, content) => {
     const isOpen = openMenu === menu;
     return (
       <div
-        className={`nav-item dropdown ${wrapperClass}`}
+        className={`nav-item dropdown ${wrapperClass} ${isOpen ? 'is-open' : ''}`}
         onMouseEnter={() => {
-          if (typeof window !== 'undefined' && window.innerWidth >= 992 && pinned !== menu) {
+          if (typeof window !== 'undefined' && window.innerWidth >= 992) {
             setOpenMenu(menu);
           }
         }}
         onMouseLeave={() => {
-          if (typeof window !== 'undefined' && window.innerWidth >= 992 && pinned !== menu) {
+          if (typeof window !== 'undefined' && window.innerWidth >= 992) {
             setOpenMenu(null);
           }
         }}
       >
         <span
-          className="nav-link dropdown-toggle"
+          className={`nav-link dropdown-toggle ${isOpen ? 'show active' : ''}`}
           role="button"
           tabIndex={0}
           aria-expanded={isOpen}
@@ -163,9 +155,11 @@ export default function NavigationBar() {
         >
           {title}
         </span>
-        <div className={`dropdown-menu ${isOpen ? 'show' : ''}`}>
-          {content}
-        </div>
+        {isOpen && (
+          <div className="dropdown-menu show" role="menu">
+            {content}
+          </div>
+        )}
       </div>
     );
   };
@@ -186,7 +180,7 @@ export default function NavigationBar() {
     <Navbar
       expand="lg"
       expanded={expanded}
-      onToggle={() => setExpanded(!expanded)}
+      onToggle={(next) => setExpanded(typeof next === 'boolean' ? next : !expanded)}
       style={{
         position: 'sticky',
         top: 0,
@@ -463,35 +457,34 @@ export default function NavigationBar() {
         @media (min-width: 992px) {
           .navbar-light .navbar-nav .nav-link:hover,
           .navbar-light .navbar-nav .nav-link:focus {
-            transform: translateY(-1px) scale(1.04);
+            transform: translateY(-1px);
           }
           .navbar .nav-item {
             position: relative;
+            padding-bottom: 4px;
           }
           .navbar .dropdown-menu {
             position: absolute;
-            display: block;
             left: 50%;
             top: 100%;
-            margin-top: 4px;
-            background: #fff;
+            margin-top: 2px;
+            background: #ffffff;
             border: 1px solid var(--eduact-soft4);
             border-radius: 14px;
             box-shadow: 0 20px 50px rgba(23, 42, 70, 0.15);
             padding: 12px;
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transform: translate(-50%, 10px) scale(0.98);
-            transform-origin: top center;
-            transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.26s;
+            z-index: 1050;
+            animation: desktopDropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           }
-          .navbar .dropdown-menu.show {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-            transform: translate(-50%, 0) scale(1);
-            transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear;
+          @keyframes desktopDropdownIn {
+            from {
+              opacity: 0;
+              transform: translate(-50%, 6px) scale(0.98);
+            }
+            to {
+              opacity: 1;
+              transform: translate(-50%, 0) scale(1);
+            }
           }
           .mega-grid {
             display: grid;
@@ -504,26 +497,36 @@ export default function NavigationBar() {
 
         /* Mobile & Tablet Responsive (< 992px) */
         @media (max-width: 991.98px) {
-          .navbar-collapse {
+          .navbar-collapse:not(.show) {
+            display: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
+          }
+          .navbar-collapse.show {
+            display: block !important;
             background: #ffffff;
-            margin-top: 12px;
-            padding: 16px 14px 20px;
+            margin-top: 10px;
+            padding: 14px 12px 18px;
             border-radius: 14px;
             border: 1px solid var(--eduact-soft4);
             box-shadow: 0 16px 40px rgba(23, 42, 70, 0.12);
-            max-height: min(80vh, 600px);
+            max-height: calc(100vh - 90px);
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
           }
           .navbar-nav {
-            gap: 6px !important;
-            margin-bottom: 14px;
+            gap: 4px !important;
+            margin-bottom: 12px;
           }
           .nav-item.dropdown {
             width: 100%;
           }
           .navbar-light .navbar-nav .nav-link {
-            padding: 10px 14px !important;
+            padding: 10px 12px !important;
             font-size: 15px !important;
             margin: 0 !important;
             display: flex;
@@ -533,11 +536,10 @@ export default function NavigationBar() {
           .navbar .dropdown-toggle::after {
             margin-left: auto;
           }
-          /* CRITICAL: Closed dropdowns on mobile MUST have display: none to not take up layout space */
-          .dropdown-menu {
-            display: none !important;
+          .navbar-collapse .dropdown-menu {
             position: static !important;
             float: none !important;
+            display: block !important;
             width: 100% !important;
             margin: 4px 0 8px !important;
             padding: 8px 6px !important;
@@ -546,16 +548,17 @@ export default function NavigationBar() {
             border-radius: 10px !important;
             box-shadow: none !important;
             transform: none !important;
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
+            animation: mobileDropdownSlide 0.2s ease-out forwards;
           }
-          .navbar .dropdown-menu.show {
-            display: block !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            pointer-events: auto !important;
-            transform: none !important;
+          @keyframes mobileDropdownSlide {
+            from {
+              opacity: 0;
+              transform: translateY(-4px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
           .mega-grid {
             display: flex;
@@ -565,13 +568,13 @@ export default function NavigationBar() {
             padding: 0;
           }
           .mega-head {
-            margin: 6px 0 8px 6px;
+            margin: 4px 0 8px 4px;
             display: inline-block;
             font-size: 10.5px;
-            padding: 6px 16px;
+            padding: 5px 14px;
           }
           .dropdown-item {
-            padding: 9px 12px !important;
+            padding: 8px 12px !important;
             font-size: 13.5px !important;
             white-space: normal !important;
             word-break: break-word;
@@ -586,6 +589,7 @@ export default function NavigationBar() {
             justify-content: center;
             padding: 12px 20px;
             font-size: 14px;
+            margin-top: 6px;
           }
         }
       `}</style>

@@ -97,11 +97,26 @@ export default function NavigationBar() {
   }, []);
 
 
-  useEffect(() => {
+  const closeAll = () => {
     setExpanded(false);
     setOpenMenu(null);
     setPinned(null);
+  };
+
+  useEffect(() => {
+    closeAll();
   }, [location.pathname]);
+
+  // Close menus when clicking outside the navbar
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.navbar')) {
+        closeAll();
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const isActive = (path) => location.pathname === path;
   const [bizCol1, bizCol2] = splitHalf(cfg.businessLinks);
@@ -109,7 +124,7 @@ export default function NavigationBar() {
   const navTitleStyle = { fontWeight: 600, fontSize: '14.5px', color: 'var(--eduact-black)' };
 
   const toggleMenu = (menu) => {
-    if (pinned === menu) {
+    if (openMenu === menu) {
       setOpenMenu(null);
       setPinned(null);
     } else {
@@ -123,15 +138,27 @@ export default function NavigationBar() {
     return (
       <div
         className={`nav-item dropdown ${wrapperClass}`}
-        onMouseEnter={() => { if (pinned !== menu) setOpenMenu(menu); }}
-        onMouseLeave={() => { if (pinned !== menu) setOpenMenu(null); }}
+        onMouseEnter={() => {
+          if (typeof window !== 'undefined' && window.innerWidth >= 992 && pinned !== menu) {
+            setOpenMenu(menu);
+          }
+        }}
+        onMouseLeave={() => {
+          if (typeof window !== 'undefined' && window.innerWidth >= 992 && pinned !== menu) {
+            setOpenMenu(null);
+          }
+        }}
       >
         <span
           className="nav-link dropdown-toggle"
           role="button"
           tabIndex={0}
           aria-expanded={isOpen}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleMenu(menu); }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMenu(menu);
+          }}
           style={{ ...navTitleStyle, cursor: 'pointer' }}
         >
           {title}
@@ -173,7 +200,7 @@ export default function NavigationBar() {
       variant="light"
     >
       <Container>
-        <Navbar.Brand as={Link} to="/" style={{
+        <Navbar.Brand as={Link} to="/" onClick={closeAll} style={{
           display: 'flex',
           alignItems: 'center',
         }}>
@@ -186,7 +213,7 @@ export default function NavigationBar() {
             width="472"
             height="132"
             style={{
-              height: '46px',
+              height: 'clamp(38px, 5vw, 46px)',
               width: 'auto',
               objectFit: 'contain',
               display: 'block',
@@ -194,7 +221,11 @@ export default function NavigationBar() {
           />
         </Navbar.Brand>
 
-        <Navbar.Toggle aria-controls="main-navbar" style={{ borderColor: 'rgba(23, 42, 70,0.4)' }} />
+        <Navbar.Toggle
+          aria-controls="main-navbar"
+          aria-label="Toggle navigation"
+          style={{ borderColor: 'rgba(23, 42, 70, 0.35)' }}
+        />
 
         <Navbar.Collapse id="main-navbar">
           <Nav className="mx-auto" style={{ gap: '4px' }}>
@@ -203,7 +234,7 @@ export default function NavigationBar() {
               location.pathname.startsWith('/business-solutions') ? 'active' : '',
               (
                 <>
-                  <Link to="/business-solutions" className="mega-head">Service</Link>
+                  <Link to="/business-solutions" className="mega-head" onClick={closeAll}>Service</Link>
                   <div className="mega-grid">
                     <div>
                       {bizCol1.map((link) => (
@@ -211,23 +242,12 @@ export default function NavigationBar() {
                           key={link.label}
                           className="dropdown-item"
                           to={link.path}
+                          onClick={closeAll}
                           style={{
                             fontSize: '14px',
                             padding: '8px 12px',
                             borderRadius: '6px',
-                            transition:
-                              'background-color 0.18s ease, color 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1)',
                             color: 'var(--eduact-black)',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(179, 38, 45,0.08)';
-                            e.currentTarget.style.transform = 'translateX(4px)';
-                            e.currentTarget.style.color = 'var(--eduact-base)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.transform = 'none';
-                            e.currentTarget.style.color = 'var(--eduact-black)';
                           }}
                         >
                           {link.label}
@@ -240,23 +260,12 @@ export default function NavigationBar() {
                           key={link.label}
                           className="dropdown-item"
                           to={link.path}
+                          onClick={closeAll}
                           style={{
                             fontSize: '14px',
                             padding: '8px 12px',
                             borderRadius: '6px',
-                            transition:
-                              'background-color 0.18s ease, color 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1)',
                             color: 'var(--eduact-black)',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(179, 38, 45,0.08)';
-                            e.currentTarget.style.transform = 'translateX(4px)';
-                            e.currentTarget.style.color = 'var(--eduact-base)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.transform = 'none';
-                            e.currentTarget.style.color = 'var(--eduact-black)';
                           }}
                         >
                           {link.label}
@@ -272,7 +281,7 @@ export default function NavigationBar() {
               location.pathname.startsWith('/learning-programs') ? 'active' : '',
               (
                 <>
-                  <Link to="/learning-programs" className="mega-head">Career Tracks</Link>
+                  <Link to="/learning-programs" className="mega-head" onClick={closeAll}>Career Tracks</Link>
                   <div className="mega-grid">
                     <div>
                       {learnCol1.map((link) => (
@@ -280,23 +289,12 @@ export default function NavigationBar() {
                           key={link.label}
                           className="dropdown-item"
                           to={link.path}
+                          onClick={closeAll}
                           style={{
                             fontSize: '14px',
                             padding: '8px 12px',
                             borderRadius: '6px',
-                            transition:
-                              'background-color 0.18s ease, color 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1)',
                             color: 'var(--eduact-black)',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(179, 38, 45,0.08)';
-                            e.currentTarget.style.transform = 'translateX(4px)';
-                            e.currentTarget.style.color = 'var(--eduact-base)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.transform = 'none';
-                            e.currentTarget.style.color = 'var(--eduact-black)';
                           }}
                         >
                           {link.label}
@@ -309,23 +307,12 @@ export default function NavigationBar() {
                           key={link.label}
                           className="dropdown-item"
                           to={link.path}
+                          onClick={closeAll}
                           style={{
                             fontSize: '14px',
                             padding: '8px 12px',
                             borderRadius: '6px',
-                            transition:
-                              'background-color 0.18s ease, color 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1)',
                             color: 'var(--eduact-black)',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(179, 38, 45,0.08)';
-                            e.currentTarget.style.transform = 'translateX(4px)';
-                            e.currentTarget.style.color = 'var(--eduact-base)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.transform = 'none';
-                            e.currentTarget.style.color = 'var(--eduact-black)';
                           }}
                         >
                           {link.label}
@@ -343,10 +330,11 @@ export default function NavigationBar() {
                 <>
                   {cfg.csrLinks.map((link, i) => (
                     <div key={link.label + i}>
-                      {i > 0 && <div className="dropdown-divider" style={{ borderColor: 'rgba(179, 38, 45,0.15)' }} />}
+                      {i > 0 && <div className="dropdown-divider" style={{ borderColor: 'rgba(179, 38, 45, 0.15)' }} />}
                       <Link
                         to={link.path}
                         className="dropdown-item"
+                        onClick={closeAll}
                         style={{
                           fontSize: '14px',
                           padding: '10px 16px',
@@ -366,6 +354,7 @@ export default function NavigationBar() {
                 key={link.path}
                 as={Link}
                 to={link.path}
+                onClick={closeAll}
                 style={{
                   fontWeight: 600,
                   fontSize: '14.5px',
@@ -381,7 +370,7 @@ export default function NavigationBar() {
           </Nav>
 
           <div className="d-flex align-items-center gap-3">
-            <Link to={cfg.ctaPath} className="btn-eduact" style={{
+            <Link to={cfg.ctaPath} onClick={closeAll} className="btn-eduact" style={{
               fontSize: '13px',
               padding: '10px 20px',
               background: 'var(--eduact-secondary)',
@@ -404,44 +393,23 @@ export default function NavigationBar() {
         .navbar-light .navbar-nav .nav-link:hover,
         .navbar-light .navbar-nav .nav-link:focus {
           color: var(--eduact-base) !important;
-          background: rgba(179, 38, 45,0.06);
-          transform: translateY(-1px) scale(1.04);
-          box-shadow: 0 2px 8px rgba(23, 42, 70,0.08);
-        }
-        .dropdown-menu {
-          display: block;
-          background: #fff;
-          border: 1px solid var(--eduact-soft4);
-          border-radius: 14px;
-          box-shadow: 0 20px 50px rgba(23, 42, 70,0.15);
-          padding: 12px;
-          margin-top: 0;
-          opacity: 0;
-          visibility: hidden;
-          pointer-events: none;
-          transform: translate(-50%, 10px) scale(0.98);
-          transform-origin: top center;
-          transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.26s;
-        }
-        .navbar .dropdown-menu.show {
-          opacity: 1;
-          visibility: visible;
-          pointer-events: auto;
-          transform: translate(-50%, 0) scale(1);
-          transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear;
+          background: rgba(179, 38, 45, 0.06);
+          box-shadow: 0 2px 8px rgba(23, 42, 70, 0.08);
         }
         .dropdown-item {
           color: var(--eduact-black);
           border-radius: 8px;
+          transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
         }
         .dropdown-item:hover, .dropdown-item:focus {
-          background: rgba(179, 38, 45,0.08);
+          background: rgba(179, 38, 45, 0.08);
           color: var(--eduact-base);
+          transform: translateX(3px);
         }
         .navbar .dropdown-toggle::after {
           vertical-align: middle;
           margin-left: 6px;
-          border-top-color: rgba(23, 42, 70,0.6);
+          border-top-color: rgba(23, 42, 70, 0.6);
           transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-top-color 0.25s ease;
         }
         .navbar .dropdown-toggle[aria-expanded="true"]::after {
@@ -478,58 +446,146 @@ export default function NavigationBar() {
           transform: translateX(4px);
         }
         .navbar-toggler {
-          transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          border: 1px solid rgba(23, 42, 70, 0.25);
+          padding: 6px 10px;
+          border-radius: 8px;
+          transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
         }
         .navbar-toggler:hover {
-          transform: scale(1.05);
+          border-color: var(--eduact-base);
+          background: rgba(179, 38, 45, 0.05);
         }
-        .mega-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4px;
-          min-width: min(440px, 92vw);
-          padding: 8px;
+        .navbar-toggler:focus {
+          box-shadow: 0 0 0 3px rgba(179, 38, 45, 0.2);
         }
-        @media (min-width: 576px) and (max-width: 991px) {
-          .mega-grid {
-            min-width: 0;
-          }
-        }
-        @media (max-width: 575px) {
-          .mega-grid {
-            min-width: 0;
-            grid-template-columns: 1fr;
-            gap: 2px;
-            padding: 2px;
-          }
-        }
+
+        /* Desktop Dropdown Styles (>= 992px) */
         @media (min-width: 992px) {
-          .navbar .dropdown-menu {
-            left: 50%;
-            margin-top: 0;
+          .navbar-light .navbar-nav .nav-link:hover,
+          .navbar-light .navbar-nav .nav-link:focus {
+            transform: translateY(-1px) scale(1.04);
           }
           .navbar .nav-item {
             position: relative;
           }
-        }
-        @media (max-width: 991px) {
-          .dropdown-menu {
-            left: 0;
-            min-width: 100% !important;
-            box-shadow: none;
+          .navbar .dropdown-menu {
+            position: absolute;
+            display: block;
+            left: 50%;
+            top: 100%;
+            margin-top: 4px;
+            background: #fff;
             border: 1px solid var(--eduact-soft4);
-            background: var(--eduact-white);
-            transform: translate(0, 10px) scale(0.99);
+            border-radius: 14px;
+            box-shadow: 0 20px 50px rgba(23, 42, 70, 0.15);
+            padding: 12px;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translate(-50%, 10px) scale(0.98);
+            transform-origin: top center;
+            transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.26s;
           }
           .navbar .dropdown-menu.show {
-            transform: translate(0, 0) scale(1);
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translate(-50%, 0) scale(1);
+            transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear;
+          }
+          .mega-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            min-width: min(440px, 92vw);
+            padding: 8px;
+          }
+        }
+
+        /* Mobile & Tablet Responsive (< 992px) */
+        @media (max-width: 991.98px) {
+          .navbar-collapse {
+            background: #ffffff;
+            margin-top: 12px;
+            padding: 16px 14px 20px;
+            border-radius: 14px;
+            border: 1px solid var(--eduact-soft4);
+            box-shadow: 0 16px 40px rgba(23, 42, 70, 0.12);
+            max-height: min(80vh, 600px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .navbar-nav {
+            gap: 6px !important;
+            margin-bottom: 14px;
+          }
+          .nav-item.dropdown {
+            width: 100%;
+          }
+          .navbar-light .navbar-nav .nav-link {
+            padding: 10px 14px !important;
+            font-size: 15px !important;
+            margin: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .navbar .dropdown-toggle::after {
+            margin-left: auto;
+          }
+          /* CRITICAL: Closed dropdowns on mobile MUST have display: none to not take up layout space */
+          .dropdown-menu {
+            display: none !important;
+            position: static !important;
+            float: none !important;
+            width: 100% !important;
+            margin: 4px 0 8px !important;
+            padding: 8px 6px !important;
+            background: #f8fafc !important;
+            border: 1px solid rgba(23, 42, 70, 0.08) !important;
+            border-radius: 10px !important;
+            box-shadow: none !important;
+            transform: none !important;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+          }
+          .navbar .dropdown-menu.show {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            transform: none !important;
+          }
+          .mega-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            padding: 0;
+          }
+          .mega-head {
+            margin: 6px 0 8px 6px;
+            display: inline-block;
+            font-size: 10.5px;
+            padding: 6px 16px;
           }
           .dropdown-item {
-            color: var(--eduact-black);
+            padding: 9px 12px !important;
+            font-size: 13.5px !important;
+            white-space: normal !important;
+            word-break: break-word;
           }
-          .dropdown-item:hover {
-            background: rgba(179, 38, 45,0.08);
-            color: var(--eduact-base);
+          .dropdown-item:hover, .dropdown-item:focus {
+            transform: none !important;
+          }
+          .navbar-collapse .btn-eduact {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            font-size: 14px;
           }
         }
       `}</style>

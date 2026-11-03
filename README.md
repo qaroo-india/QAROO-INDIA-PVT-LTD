@@ -9,7 +9,7 @@ The public frontend is powered by an admin dashboard at `/admin` with role-based
 ## Tech Stack
 
 - **Frontend:** React 18, Vite 6, React Router v7, React Bootstrap, GSAP, Motion, OGL (all existing styling, design, and animations preserved)
-- **Backend:** Node.js, Express 5, Firebase Cloud Firestore (`crm-qaroo`)
+- **Backend:** Node.js, Express 5, Firebase Cloud Firestore (`qaroo-india-pvt-ltd`)
 - **Database:** Firebase Cloud Firestore (NoSQL, real-time, serverless-compatible)
 - **Authentication:** JWT access/refresh tokens in HTTP-only cookies, bcrypt password hashing, Nodemailer email verification
 - **Deployment:** Vercel (Unified single-project deployment with serverless API functions and Vite static hosting)
@@ -84,7 +84,7 @@ Key environment variables:
 | `JWT_SECRET` | Secret key for signing JWT tokens | *Required* |
 | `ADMIN_EMAIL` | Initial Super Admin email | `admin@qaroo.in` |
 | `ADMIN_PASSWORD` | Initial Super Admin password | *Required for seed* |
-| `FIREBASE_PROJECT_ID` | Firebase Project ID | `crm-qaroo` |
+| `FIREBASE_PROJECT_ID` | Firebase Project ID | `qaroo-india-pvt-ltd` |
 | `FIREBASE_API_KEY` | Firebase Web API Key | Configured |
 | `CLIENT_URL` | Allowed origin for CORS | `http://localhost:5173` |
 | `EMAIL_*` | SMTP credentials for email verification | Optional |

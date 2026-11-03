@@ -4,7 +4,7 @@ rules_version = '2';
 // Assumed Data Model
 // ===============================================================
 //
-// Application: QAROO INDIA PVT LTD (Project ID: crm-qaroo)
+// Application: QAROO INDIA PVT LTD (Project ID: qaroo-india-pvt-ltd)
 //
 // 1. Collection: admins
 //    Document ID: {adminId} (UID or UUID)

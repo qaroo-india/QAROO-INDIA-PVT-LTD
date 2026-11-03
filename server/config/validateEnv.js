@@ -82,7 +82,7 @@ const validateEnv = () => {
         );
       }
     }
-    const projectId = FIREBASE_PROJECT_ID || 'crm-qaroo';
+    const projectId = FIREBASE_PROJECT_ID || 'qaroo-india-pvt-ltd';
     if (!projectId) {
       errors.push('FIREBASE_PROJECT_ID is required for Firebase Firestore.');
     }

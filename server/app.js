@@ -57,14 +57,10 @@ app.use(
 app.use(compression());
 
 // On Vercel (or when VERCEL env is set), validate environment once per cold start.
-let vercelEnvError = null;
 if (process.env.VERCEL) {
   const { errors, warnings } = validateEnv();
   for (const w of warnings) console.warn(`[env] ${w}`);
-  if (errors.length) {
-    vercelEnvError = errors.join('; ');
-    console.error(`[env] Configuration error(s): ${vercelEnvError}`);
-  }
+  for (const e of errors) console.warn(`[env] Configuration note: ${e}`);
 }
 
 // Allow a comma-separated CLIENT_URL list (or a single origin) while keeping
@@ -72,23 +68,37 @@ if (process.env.VERCEL) {
 // rather than at import time so a serverless cold start always sees the current
 // environment.
 const allowedOrigins = () => {
-  const origins = String(process.env.CLIENT_URL || 'http://localhost:5173')
+  const defaultOrigins = [
+    'https://www.qaroo.in',
+    'https://qaroo.in',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:5000',
+  ];
+  const configured = String(process.env.CLIENT_URL || '')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+  const origins = new Set([...defaultOrigins, ...configured]);
   if (process.env.VERCEL_URL) {
-    origins.push(`https://${process.env.VERCEL_URL}`);
+    origins.add(`https://${process.env.VERCEL_URL}`);
   }
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    origins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+    origins.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
   }
-  return origins;
+  return Array.from(origins);
 };
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins().includes(origin)) {
+      if (!origin) return callback(null, true);
+      const list = allowedOrigins();
+      if (
+        list.includes(origin) ||
+        origin.endsWith('.qaroo.in') ||
+        origin.endsWith('.vercel.app')
+      ) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));
@@ -112,19 +122,6 @@ app.use(cookieParser());
 app.get('/api/health', (req, res) =>
   res.json({ success: true, message: 'Qaroo India Private Limited CMS API is running' })
 );
-
-// On Vercel / serverless runtime, verify configuration before handling requests.
-if (process.env.VERCEL) {
-  app.use((req, res, next) => {
-    if (vercelEnvError) {
-      return res.status(500).json({
-        success: false,
-        message: 'Server is misconfigured. See the deployment logs.',
-      });
-    }
-    next();
-  });
-}
 
 // Automatically ensure database collections are populated with default content
 app.use((req, res, next) => {

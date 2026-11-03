@@ -31,7 +31,7 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString() : '-');
 // `inline=1` renders it in the viewer; without it the server sends it as an
 // attachment, which is the only thing that downloads, and only on a click.
 const resumeHref = (id, inline) => `/api/applications/${id}/resume${inline ? '?inline=1' : ''}`;
-const hasResume = (a) => Boolean(a.resumeUrl || a.resumePath);
+const hasResume = (a) => Boolean(a.resumeUrl || a.resumePath || a.resumeFileId);
 const isPdf = (a) => (a.resumeMime || '').includes('pdf') || (a.resumePath || '').endsWith('.pdf');
 
 export default function Applications() {

@@ -10,6 +10,7 @@ import {
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import db from './firebase.js';
+import { getMongoCollection } from './mongodb.js';
 
 // Global cache registry so models can populate each other (e.g. populating createdBy from admins)
 const modelRegistry = new Map();
@@ -289,6 +290,32 @@ export class FirestoreModel {
     if (this._syncPromise) return this._syncPromise;
 
     this._syncPromise = (async () => {
+      // 1. Primary: Fetch from MongoDB Atlas
+      try {
+        const mongoCol = await getMongoCollection(this.collectionName);
+        if (mongoCol) {
+          const docs = await mongoCol.find({}).toArray();
+          if (Array.isArray(docs)) {
+            for (const d of docs) {
+              const id = String(d._id || d.id);
+              this.inMemoryCache.set(id, {
+                ...d,
+                _id: id,
+                id,
+                createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
+                updatedAt: d.updatedAt ? new Date(d.updatedAt) : new Date(),
+              });
+            }
+            this._initialized = true;
+            this._syncPromise = null;
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn(`[Sync] MongoDB fetch for "${this.collectionName}" deferred:`, err.message);
+      }
+
+      // 2. Secondary: Fallback to Firestore
       try {
         const fetchPromise = getDocs(this._col());
         const timeoutPromise = new Promise((_, reject) =>
@@ -425,15 +452,32 @@ export class FirestoreModel {
       updatedAt: now,
     };
 
-    const sanitized = sanitizeForFirestore(newDoc);
+    // 1. Persist to MongoDB Atlas
     try {
-      await setDoc(this._doc(docId), {
-        ...sanitized,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {
-      // offline/fallback: persist to inMemoryCache
+      const mongoCol = await getMongoCollection(this.collectionName);
+      if (mongoCol) {
+        await mongoCol.updateOne(
+          { _id: docId },
+          { $set: { ...newDoc, _id: docId, id: docId } },
+          { upsert: true }
+        );
+      }
+    } catch (err) {
+      console.warn(`[Create] MongoDB save for ${this.collectionName} deferred:`, err.message);
+    }
+
+    // 2. Persist to Firestore fallback if enabled
+    if (process.env.ENABLE_FIRESTORE_DUAL_WRITE === 'true') {
+      const sanitized = sanitizeForFirestore(newDoc);
+      try {
+        await setDoc(this._doc(docId), {
+          ...sanitized,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // offline/fallback
+      }
     }
 
     const fullDoc = { ...newDoc, _id: docId, id: docId };
@@ -463,14 +507,30 @@ export class FirestoreModel {
       updatedAt: new Date(),
     };
 
-    const sanitizedUpdate = sanitizeForFirestore(cleanUpdate);
+    // 1. Update in MongoDB Atlas
     try {
-      await updateDoc(this._doc(strId), {
-        ...sanitizedUpdate,
-        updatedAt: serverTimestamp(),
-      });
-    } catch {
-      // Fallback
+      const mongoCol = await getMongoCollection(this.collectionName);
+      if (mongoCol) {
+        await mongoCol.updateOne(
+          { _id: strId },
+          { $set: { ...cleanUpdate, updatedAt: new Date() } }
+        );
+      }
+    } catch (err) {
+      console.warn(`[Update] MongoDB update for ${this.collectionName} deferred:`, err.message);
+    }
+
+    // 2. Update in Firestore fallback if enabled
+    if (process.env.ENABLE_FIRESTORE_DUAL_WRITE === 'true') {
+      const sanitizedUpdate = sanitizeForFirestore(cleanUpdate);
+      try {
+        await updateDoc(this._doc(strId), {
+          ...sanitizedUpdate,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // Fallback
+      }
     }
 
     this.inMemoryCache.set(strId, updated);
@@ -483,10 +543,23 @@ export class FirestoreModel {
     await this._ensureSync();
     const existing = this.inMemoryCache.get(strId);
 
+    // 1. Delete from MongoDB Atlas
     try {
-      await deleteDoc(this._doc(strId));
-    } catch {
-      // Fallback
+      const mongoCol = await getMongoCollection(this.collectionName);
+      if (mongoCol) {
+        await mongoCol.deleteOne({ _id: strId });
+      }
+    } catch (err) {
+      console.warn(`[Delete] MongoDB delete for ${this.collectionName} deferred:`, err.message);
+    }
+
+    // 2. Delete from Firestore fallback if enabled
+    if (process.env.ENABLE_FIRESTORE_DUAL_WRITE === 'true') {
+      try {
+        await deleteDoc(this._doc(strId));
+      } catch {
+        // Fallback
+      }
     }
 
     this.inMemoryCache.delete(strId);

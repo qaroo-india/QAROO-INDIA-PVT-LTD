@@ -3753,7 +3753,7 @@
       "id": "superadmin_qaroo_admin_001",
       "name": "Qaroo Super Admin",
       "email": "admin@qaroo.in",
-      "password": "$2a$10$3v75B6SNv854IBfh1RdydOVpwGSP/CpK2oqfUv.Ii2nUGJSI8uU/W",
+      "password": "$2a$10$40LIxiP1e9rXoEbvBTjD/.MlsfmGoMoWYJuC6YN9./bgkTQugb1XC",
       "role": "superadmin",
       "permissions": [
         "dashboard.view",
@@ -3802,7 +3802,7 @@
       "_id": "6a9183190af568ca37cb7540",
       "name": "Qaroo Super Admin",
       "email": "support@qaroo.in",
-      "password": "$2a$10$3v75B6SNv854IBfh1RdydOVpwGSP/CpK2oqfUv.Ii2nUGJSI8uU/W",
+      "password": "$2a$10$40LIxiP1e9rXoEbvBTjD/.MlsfmGoMoWYJuC6YN9./bgkTQugb1XC",
       "role": "superadmin",
       "permissions": [
         "dashboard.view",
@@ -3906,7 +3906,7 @@
       "id": "superadmin_qaroo_master_002",
       "name": "Qaroo Super Admin",
       "email": "superadmin@qaroo.in",
-      "password": "$2a$10$3v75B6SNv854IBfh1RdydOVpwGSP/CpK2oqfUv.Ii2nUGJSI8uU/W",
+      "password": "$2a$10$40LIxiP1e9rXoEbvBTjD/.MlsfmGoMoWYJuC6YN9./bgkTQugb1XC",
       "role": "superadmin",
       "permissions": [
         "dashboard.view",

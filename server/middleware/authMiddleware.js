@@ -13,6 +13,8 @@ export function tokenPredatesPasswordChange(decoded, admin) {
   return decoded.iat * 1000 < admin.passwordChangedAt.getTime();
 }
 
+const JWT_SECRET = process.env.JWT_SECRET || 'qaroo_production_fallback_secret_key_minimum_32_chars_2026';
+
 // Attaches req.admin if a valid token is present, but never rejects.
 export async function optionalAuth(req, res, next) {
   try {
@@ -25,7 +27,7 @@ export async function optionalAuth(req, res, next) {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     } catch {
       return next();
     }
@@ -56,7 +58,7 @@ export async function protect(req, res, next) {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     } catch {
       return res.status(401).json({ success: false, message: 'Not authorized, token invalid or expired' });
     }

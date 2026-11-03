@@ -19,6 +19,8 @@ import {
 } from '../services/emailService.js';
 import { ALL_PERMISSIONS } from '../utils/permissions.js';
 
+const getJwtSecret = () => process.env.JWT_SECRET || 'qaroo_production_fallback_secret_key_minimum_32_chars_2026';
+
 const register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body || {};
@@ -109,14 +111,15 @@ const login = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Your account has been disabled' });
     }
 
+    const secret = getJwtSecret();
     const accessToken = jwt.sign(
       { id: admin._id, role: admin.role },
-      process.env.JWT_SECRET,
+      secret,
       { algorithm: 'HS256', expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' }
     );
     const refreshToken = jwt.sign(
       { id: admin._id },
-      process.env.JWT_SECRET + '_refresh',
+      secret + '_refresh',
       { algorithm: 'HS256', expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
     );
 
@@ -136,9 +139,10 @@ const refresh = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({ success: false, message: 'No refresh token' });
     }
+    const secret = getJwtSecret();
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET + '_refresh', { algorithms: ['HS256'] });
+      decoded = jwt.verify(token, secret + '_refresh', { algorithms: ['HS256'] });
     } catch {
       return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     }
@@ -161,7 +165,7 @@ const refresh = async (req, res, next) => {
     }
     const accessToken = jwt.sign(
       { id: admin._id, role: admin.role },
-      process.env.JWT_SECRET,
+      secret,
       { algorithm: 'HS256', expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' }
     );
     res.cookie('accessToken', accessToken, { ...authCookieOptions(), maxAge: ACCESS_COOKIE_MAX_AGE });

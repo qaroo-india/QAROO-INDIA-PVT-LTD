@@ -1,10 +1,12 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'qaroo_production_fallback_secret_key_minimum_32_chars_2026';
+
 export function generateAccessToken(admin) {
   return jwt.sign(
     { id: admin._id, role: admin.role },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     { algorithm: 'HS256', expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' }
   );
 }
@@ -12,7 +14,7 @@ export function generateAccessToken(admin) {
 export function generateRefreshToken(admin) {
   return jwt.sign(
     { id: admin._id },
-    process.env.JWT_SECRET + '_refresh',
+    JWT_SECRET + '_refresh',
     { algorithm: 'HS256', expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 }

@@ -177,6 +177,13 @@ export default function NavigationBar() {
         </div>
       </Container>
     </div>
+    {expanded && (
+      <div
+        className="navbar-backdrop d-lg-none"
+        onClick={closeAll}
+        aria-hidden="true"
+      />
+    )}
     <Navbar
       expand="lg"
       expanded={expanded}
@@ -228,7 +235,7 @@ export default function NavigationBar() {
               location.pathname.startsWith('/business-solutions') ? 'active' : '',
               (
                 <>
-                  <Link to="/business-solutions" className="mega-head" onClick={closeAll}>Service</Link>
+                  <Link to="/business-solutions" className="mega-head" onClick={closeAll}>Explore All Solutions</Link>
                   <div className="mega-grid">
                     <div>
                       {bizCol1.map((link) => (
@@ -275,7 +282,7 @@ export default function NavigationBar() {
               location.pathname.startsWith('/learning-programs') ? 'active' : '',
               (
                 <>
-                  <Link to="/learning-programs" className="mega-head" onClick={closeAll}>Career Tracks</Link>
+                  <Link to="/learning-programs" className="mega-head" onClick={closeAll}>Explore All Programs</Link>
                   <div className="mega-grid">
                     <div>
                       {learnCol1.map((link) => (
@@ -497,6 +504,12 @@ export default function NavigationBar() {
 
         /* Mobile & Tablet Responsive (< 992px) */
         @media (max-width: 991.98px) {
+          .navbar {
+            padding: 8px 0 !important;
+          }
+          .navbar > .container {
+            position: relative !important;
+          }
           .navbar-collapse:not(.show) {
             display: none !important;
             margin: 0 !important;
@@ -507,31 +520,69 @@ export default function NavigationBar() {
             overflow: hidden !important;
           }
           .navbar-collapse.show {
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            left: 12px !important;
+            right: 12px !important;
             display: block !important;
-            background: #ffffff;
-            margin-top: 10px;
-            padding: 14px 12px 18px;
-            border-radius: 14px;
-            border: 1px solid var(--eduact-soft4);
-            box-shadow: 0 16px 40px rgba(23, 42, 70, 0.12);
-            max-height: calc(100vh - 90px);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 16px 14px 20px !important;
+            border-radius: 16px !important;
+            border: 1px solid var(--eduact-soft4) !important;
+            box-shadow: 0 20px 48px -6px rgba(23, 42, 70, 0.22) !important;
+            max-height: calc(100vh - 100px) !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            z-index: 1050 !important;
+            animation: mobileCollapseIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+          @keyframes mobileCollapseIn {
+            from {
+              opacity: 0;
+              transform: translateY(-8px) scale(0.99);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+          .navbar-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(23, 42, 70, 0.38);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 99;
+            animation: backdropFade 0.2s ease forwards;
+          }
+          @keyframes backdropFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
           }
           .navbar-nav {
+            width: 100% !important;
+            margin: 0 0 12px 0 !important;
             gap: 4px !important;
-            margin-bottom: 12px;
           }
           .nav-item.dropdown {
             width: 100%;
           }
           .navbar-light .navbar-nav .nav-link {
-            padding: 10px 12px !important;
+            padding: 10px 14px !important;
             font-size: 15px !important;
             margin: 0 !important;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            border-radius: 8px !important;
+            border-bottom: none !important;
+          }
+          .navbar-light .navbar-nav .nav-link:hover,
+          .navbar-light .navbar-nav .nav-link:focus,
+          .navbar-light .navbar-nav .nav-link.show {
+            background: rgba(179, 38, 45, 0.06);
+            color: var(--eduact-base) !important;
           }
           .navbar .dropdown-toggle::after {
             margin-left: auto;
@@ -568,13 +619,13 @@ export default function NavigationBar() {
             padding: 0;
           }
           .mega-head {
-            margin: 4px 0 8px 4px;
+            margin: 6px 0 8px 4px;
             display: inline-block;
             font-size: 10.5px;
-            padding: 5px 14px;
+            padding: 6px 14px;
           }
           .dropdown-item {
-            padding: 8px 12px !important;
+            padding: 9px 12px !important;
             font-size: 13.5px !important;
             white-space: normal !important;
             word-break: break-word;

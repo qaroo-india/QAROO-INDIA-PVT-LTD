@@ -1,26 +1,51 @@
-/* global console, process */
+/* global console, process, Buffer, URL */
 /**
  * Migration Tool: MongoDB Atlas -> Firebase Cloud Firestore
  *
  * Usage:
  *   node server/tools/migrateMongoToFirestore.mjs "<mongodb_connection_string>"
- *
- * Example:
- *   node server/tools/migrateMongoToFirestore.mjs "mongodb+srv://admin:password@qaroo-cluster.aiyod6e.mongodb.net/qaroo_cms"
  */
 
 import 'dotenv/config';
+import dns from 'node:dns';
 import { MongoClient, ObjectId } from 'mongodb';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../db/firebase.js';
 
-const uri = process.argv[2] || process.env.MONGODB_URI || process.env.ATLAS_URI;
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Use default OS DNS
+}
 
-if (!uri) {
+function normalizeMongoUri(rawUri) {
+  let cleaned = rawUri.trim().replace(/^["']|["']$/g, '');
+
+  const match = cleaned.match(/^mongodb(\+srv)?:\/\/([^:]+):(.+)@([^/?#]+)(\/.*)?$/);
+  if (match) {
+    let user = match[2].replace(/^<|>$/g, '');
+    let pass = match[3].replace(/^<|>$/g, '');
+    const host = match[4];
+    let rest = match[5] || '/qaroo_cms?retryWrites=true&w=majority';
+    if (rest === '/' || rest === '') rest = '/qaroo_cms?retryWrites=true&w=majority';
+
+    const encUser = encodeURIComponent(decodeURIComponent(user));
+    const encPass = encodeURIComponent(decodeURIComponent(pass));
+
+    return `mongodb${match[1] || ''}://${encUser}:${encPass}@${host}${rest}`;
+  }
+  return cleaned;
+}
+
+const rawInput = process.argv[2] || process.env.MONGODB_URI || process.env.ATLAS_URI;
+
+if (!rawInput) {
   console.error('\n[Error] Please provide your MongoDB Atlas connection string:');
   console.error('Usage: node server/tools/migrateMongoToFirestore.mjs "<mongodb_uri>"\n');
   process.exit(1);
 }
+
+const uri = normalizeMongoUri(rawInput);
 
 // Map MongoDB collection names (standard and lowercased) to Firestore collection names
 const COLLECTION_MAP = {

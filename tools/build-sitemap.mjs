@@ -23,6 +23,7 @@ const pages = [
   { loc: '/courses/cyber-security-course-coimbatore/', priority: '0.9', changefreq: 'weekly' },
   { loc: '/courses/ai-machine-learning-course-coimbatore/', priority: '0.9', changefreq: 'weekly' },
   { loc: '/courses/ui-ux-design-course-coimbatore/', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/courses/digital-marketing-course-coimbatore/', priority: '0.8', changefreq: 'weekly' },
   { loc: '/services/', priority: '0.8', changefreq: 'weekly' },
   { loc: '/services/software-web-development/', priority: '0.8', changefreq: 'weekly' },
   { loc: '/services/crm-solutions/', priority: '0.8', changefreq: 'weekly' },

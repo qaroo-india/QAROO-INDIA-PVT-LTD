@@ -1,18 +1,18 @@
 /**
  * tools/prerender.mjs
- * Post-build Static Pre-rendering Engine for Qaroo India.
- * Generates static HTML snapshots for all 15 SEO pages in dist/
- * so search engine crawlers (Google, Bing, Perplexity) see full HTML,
+ * Institutional Post-build Static Pre-rendering Engine for Qaroo India.
+ * Generates static HTML snapshots for all SEO pages in dist/
+ * so search engine crawlers (Google, Bing, Perplexity, AI bots) see full HTML,
  * headings (H1), paragraphs, and structured data without executing JS.
+ * Also generates dist/404.html to eliminate Soft 404 penalties.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SEO_PAGES, buildBreadcrumbSchema } from '../src/data/seoData.js';
+import { SEO_PAGES, buildBreadcrumbSchema, buildFAQSchema } from '../src/data/seoData.js';
 import { PROGRAMS } from '../src/data/programs.js';
 import { BUSINESS_SOLUTIONS } from '../src/data/businessSolutions.js';
-import { COMPANY } from '../src/data/company.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -30,7 +30,7 @@ function renderCourseBody(seo) {
   const highlights = (prog.highlights || []).slice(0, 8);
   const modules = (prog.modules || []).slice(0, 6);
   const tools = (prog.tools || []).slice(0, 10);
-  const faq = (prog.faq || []).slice(0, 4);
+  const faq = seo.faqs || prog.faq || [];
 
   return `
     <div class="page-wrapper">
@@ -44,7 +44,7 @@ function renderCourseBody(seo) {
                 <li aria-current="page" style="color: #F4C430;">${seo.breadcrumb || seo.h1}</li>
               </ol>
             </nav>
-            <p style="text-transform: uppercase; letter-spacing: 2px; font-weight: 700; color: #F4C430; margin-bottom: 8px;">Course in Coimbatore</p>
+            <p style="text-transform: uppercase; letter-spacing: 2px; font-weight: 700; color: #F4C430; margin-bottom: 8px;">Career Training in Coimbatore</p>
             <h1 style="font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; margin: 10px 0;">${seo.h1}</h1>
             <p style="font-size: 1.15rem; max-width: 720px; opacity: 0.9; line-height: 1.6;">${seo.description}</p>
             <div style="margin-top: 24px; display: flex; gap: 14px; flex-wrap: wrap;">
@@ -88,9 +88,9 @@ function renderCourseBody(seo) {
               <h3>Frequently Asked Questions</h3>
               <div style="margin-top: 16px;">
                 ${faq.map((q) => `
-                  <div style="margin-bottom: 16px;">
-                    <h4 style="font-size: 16px; color: #172A46; margin-bottom: 4px;">${q.q}</h4>
-                    <p style="color: #4a5568; margin: 0;">${q.a}</p>
+                  <div style="margin-bottom: 20px; background: #fff; border: 1px solid #e2e8f0; padding: 18px; border-radius: 8px;">
+                    <h4 style="font-size: 17px; color: #172A46; margin: 0 0 6px;">${q.q}</h4>
+                    <p style="color: #4a5568; margin: 0; line-height: 1.6;">${q.a}</p>
                   </div>
                 `).join('')}
               </div>
@@ -112,7 +112,7 @@ function renderServiceBody(seo) {
   const sol = BUSINESS_SOLUTIONS.find((s) => s.slug === seo.internalSlug) || {};
   const services = (sol.services || []).slice(0, 8);
   const benefits = (sol.benefits || []).slice(0, 6);
-  const problems = (sol.problems || []).slice(0, 4);
+  const faq = seo.faqs || [];
 
   return `
     <div class="page-wrapper">
@@ -149,6 +149,20 @@ function renderServiceBody(seo) {
                 ${benefits.map((b) => `
                   <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #fff;">
                     <p style="margin: 0; font-weight: 600; color: #172A46;">${b}</p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          ${faq.length ? `
+            <div style="margin-top: 40px;">
+              <h3>Frequently Asked Questions</h3>
+              <div style="margin-top: 16px;">
+                ${faq.map((q) => `
+                  <div style="margin-bottom: 20px; background: #fff; border: 1px solid #e2e8f0; padding: 18px; border-radius: 8px;">
+                    <h4 style="font-size: 17px; color: #172A46; margin: 0 0 6px;">${q.q}</h4>
+                    <p style="color: #4a5568; margin: 0; line-height: 1.6;">${q.a}</p>
                   </div>
                 `).join('')}
               </div>
@@ -356,6 +370,21 @@ function renderHomeBody(seo) {
   `;
 }
 
+function render404Body() {
+  return `
+    <div class="page-wrapper">
+      <section style="padding: 100px 20px; text-align: center; background: #172A46; color: #fff;">
+        <span style="font-size: 6rem; font-weight: 800; opacity: 0.25; display: block;">404</span>
+        <h1 style="font-size: 2.2rem; font-weight: 800; margin-top: -20px;">Page Not Found</h1>
+        <p style="max-width: 500px; margin: 16px auto; opacity: 0.8; font-size: 1.05rem;">The page you are looking for doesn't exist or has moved. Return to the homepage to explore courses and services.</p>
+        <div style="margin-top: 24px;">
+          <a href="/" style="background: #F4C430; color: #172A46; padding: 12px 24px; border-radius: 8px; font-weight: 700; text-decoration: none;">Back to Home</a>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 let generatedCount = 0;
 
 for (const [routePath, seo] of Object.entries(SEO_PAGES)) {
@@ -377,35 +406,30 @@ for (const [routePath, seo] of Object.entries(SEO_PAGES)) {
   if (seo.schema) {
     extraScripts += `\n  <script type="application/ld+json">${JSON.stringify(seo.schema)}</script>`;
   }
+  if (seo.faqs) {
+    const faqSchema = buildFAQSchema(seo.faqs);
+    extraScripts += `\n  <script type="application/ld+json">${JSON.stringify(faqSchema)}</script>`;
+  }
 
-  // Inject meta tags and body into the template
+  // Inject meta tags and body into template
   let pageHtml = template;
-
-  // Replace Title
   pageHtml = pageHtml.replace(/<title>.*?<\/title>/i, `<title>${seo.title}</title>`);
-  // Replace Meta Description
   pageHtml = pageHtml.replace(/<meta name="description" content=".*?" \/>/i, `<meta name="description" content="${seo.description}" />`);
-  // Replace Canonical Link
   pageHtml = pageHtml.replace(/<link rel="canonical" href=".*?" \/>/i, `<link rel="canonical" href="${seo.canonical}" />`);
-  // Replace OG tags
   pageHtml = pageHtml.replace(/<meta property="og:title" content=".*?" \/>/i, `<meta property="og:title" content="${seo.title}" />`);
   pageHtml = pageHtml.replace(/<meta property="og:description" content=".*?" \/>/i, `<meta property="og:description" content="${seo.description}" />`);
   pageHtml = pageHtml.replace(/<meta property="og:url" content=".*?" \/>/i, `<meta property="og:url" content="${seo.canonical}" />`);
-  // Replace Twitter tags
   pageHtml = pageHtml.replace(/<meta name="twitter:title" content=".*?" \/>/i, `<meta name="twitter:title" content="${seo.title}" />`);
   pageHtml = pageHtml.replace(/<meta name="twitter:description" content=".*?" \/>/i, `<meta name="twitter:description" content="${seo.description}" />`);
 
-  // Insert extra JSON-LD schemas right before </head>
   if (extraScripts) {
     pageHtml = pageHtml.replace('</head>', `${extraScripts}\n</head>`);
   }
 
-  // Pre-render content into <div id="root">
   if (bodyHtml) {
     pageHtml = pageHtml.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
   }
 
-  // Determine output directory
   let targetDir;
   let targetFile;
 
@@ -413,7 +437,6 @@ for (const [routePath, seo] of Object.entries(SEO_PAGES)) {
     targetDir = DIST;
     targetFile = path.join(DIST, 'index.html');
   } else {
-    // Trim leading slash
     const rel = routePath.replace(/^\//, '');
     targetDir = path.join(DIST, rel);
     targetFile = path.join(targetDir, 'index.html');
@@ -423,7 +446,6 @@ for (const [routePath, seo] of Object.entries(SEO_PAGES)) {
   fs.writeFileSync(targetFile, pageHtml, 'utf8');
   generatedCount++;
 
-  // Also support .html extensions for /about.html and /contact.html
   if (routePath === '/about') {
     fs.writeFileSync(path.join(DIST, 'about.html'), pageHtml, 'utf8');
   }
@@ -432,4 +454,11 @@ for (const [routePath, seo] of Object.entries(SEO_PAGES)) {
   }
 }
 
-console.log(`[prerender] Successfully generated pre-rendered static HTML for ${generatedCount} SEO routes in dist/`);
+// Generate real dist/404.html to eliminate Soft 404 penalties on Vercel
+const notFoundHtml = template
+  .replace(/<title>.*?<\/title>/i, '<title>Page Not Found (404) | Qaroo India</title>')
+  .replace(/<meta name="description" content=".*?" \/>/i, '<meta name="description" content="The page you requested could not be found." />')
+  .replace('<div id="root"></div>', `<div id="root">${render404Body()}</div>`);
+
+fs.writeFileSync(path.join(DIST, '404.html'), notFoundHtml, 'utf8');
+console.log(`[prerender] Successfully generated pre-rendered static HTML for ${generatedCount} SEO routes + 404.html in dist/`);

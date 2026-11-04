@@ -91,8 +91,11 @@ function TwoUp({ left, right }) {
   );
 }
 
-export default function BusinessSolutionTemplate({ solution, otherSolutions }) {
-  const path = `/business-solutions/${solution.slug}`;
+export default function BusinessSolutionTemplate({ solution, otherSolutions, seoData }) {
+  const isServicePath = seoData || window.location.pathname.startsWith('/services');
+  const path = seoData
+    ? `/services/${seoData.canonical.split('/services/')[1].replace(/\/$/, '')}`
+    : `/business-solutions/${solution.slug}`;
   // The proposal is handed over only after the visitor has said who they are,
   // so the button opens the form rather than the document.
   const [brochureOpen, setBrochureOpen] = useState(false);
@@ -119,9 +122,11 @@ export default function BusinessSolutionTemplate({ solution, otherSolutions }) {
       <PageBackdrop />
 
       <Seo
-        title={solution.metaTitle}
-        description={solution.metaDescription}
+        title={seoData?.title || solution.metaTitle}
+        description={seoData?.description || solution.metaDescription}
         path={path}
+        jsonLd={seoData?.schema}
+        jsonLdId="service-schema"
       />
 
       {/* Hero - the shared band, with the gold rule, corner glow and foot
@@ -131,21 +136,21 @@ export default function BusinessSolutionTemplate({ solution, otherSolutions }) {
           <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/' }} style={{ color: 'rgba(255,255,255,0.6)' }}>
             Home
           </Breadcrumb.Item>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/business-solutions' }} style={{ color: 'rgba(255,255,255,0.6)' }}>
-            Business Solutions
+          <Breadcrumb.Item linkAs={Link} linkProps={{ to: isServicePath ? '/services' : '/business-solutions' }} style={{ color: 'rgba(255,255,255,0.6)' }}>
+            {isServicePath ? 'Services' : 'Business Solutions'}
           </Breadcrumb.Item>
           <Breadcrumb.Item active style={{ color: '#fff' }}>
-            {solution.pageName}
+            {seoData?.breadcrumb || solution.pageName}
           </Breadcrumb.Item>
         </Breadcrumb>
-        <span className="eyebrow">Business Solution</span>
+        <span className="eyebrow">{isServicePath ? 'Service in Coimbatore' : 'Business Solution'}</span>
         <h1 style={{
           fontFamily: 'var(--heading-font)',
           fontWeight: 800,
           color: '#fff',
           fontSize: 'clamp(2rem, 4vw, 3rem)',
           marginTop: '10px',
-        }}>{solution.pageName}</h1>
+        }}>{seoData?.h1 || solution.pageName}</h1>
         <p style={{ color: 'rgba(255,255,255,0.75)', maxWidth: '640px', marginTop: '14px', fontSize: '16px' }}>
           {solution.shortDescription}
         </p>

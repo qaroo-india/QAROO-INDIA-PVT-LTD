@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import ProgramTemplate from './ProgramTemplate.jsx';
 import { learningApi } from '../../api/learningApi.js';
 import { Shimmer, ErrorState } from '../../components/ui/States';
-import { Link } from 'react-router-dom';
+import { PROGRAMS } from '../../data/programs.js';
+import { SEO_PAGES } from '../../data/seoData.js';
 
 // Maps a DB LearningProgram record into the props ProgramTemplate expects.
 function toTemplate(program) {
@@ -28,14 +29,27 @@ function toTemplate(program) {
   };
 }
 
+function getLocalProgramFallback(slug) {
+  const local = PROGRAMS.find((p) => p.slug === slug);
+  if (!local) return null;
+  return toTemplate({
+    ...local,
+    title: local.pageName || local.courseName,
+    desc: local.shortDescription
+  });
+}
+
 async function fetchOtherPrograms(currentSlug) {
   try {
     const res = await learningApi.list({}, { credentials: 'omit' });
     const list = res?.data?.programs || [];
-    return list.filter((p) => p.slug !== currentSlug).map(toTemplate);
+    if (list.length) {
+      return list.filter((p) => p.slug !== currentSlug).map(toTemplate);
+    }
   } catch {
-    return [];
+    // ignore
   }
+  return PROGRAMS.filter((p) => p.slug !== currentSlug).slice(0, 3).map((p) => toTemplate({ ...p, title: p.pageName || p.courseName }));
 }
 
 export default function CourseDetailPage() {
@@ -45,29 +59,52 @@ export default function CourseDetailPage() {
   const [state, setState] = useState('loading'); // loading | ready | notfound | error
   const [error, setError] = useState('');
 
+  // Determine if this is an SEO keyword course URL (/courses/...) or internal slug
+  const seoEntry = SEO_PAGES[`/courses/${slug}`];
+  const targetSlug = seoEntry?.internalSlug || slug;
+
   useEffect(() => {
     let active = true;
     setState('loading');
     setProgram(null);
+
     learningApi
-      .getBySlug(slug, { credentials: 'omit' })
+      .getBySlug(targetSlug, { credentials: 'omit' })
       .then((res) => {
         if (!active) return;
         const p = res?.data?.program;
-        if (!p) { setState('notfound'); return; }
-        setProgram(toTemplate(p));
-        setState('ready');
+        if (p) {
+          setProgram(toTemplate(p));
+          setState('ready');
+        } else {
+          // Fallback to local program definition
+          const fallback = getLocalProgramFallback(targetSlug);
+          if (fallback) {
+            setProgram(fallback);
+            setState('ready');
+          } else {
+            setState('notfound');
+          }
+        }
       })
       .catch((err) => {
         if (!active) return;
-        if (err?.status === 404) { setState('notfound'); return; }
-        setError(err?.message || 'We could not load this program. Please try again.');
-        setState('error');
+        // Fallback to local program definition
+        const fallback = getLocalProgramFallback(targetSlug);
+        if (fallback) {
+          setProgram(fallback);
+          setState('ready');
+        } else if (err?.status === 404) {
+          setState('notfound');
+        } else {
+          setError(err?.message || 'We could not load this program. Please try again.');
+          setState('error');
+        }
       });
 
-    fetchOtherPrograms(slug).then((o) => { if (active) setOthers(o); });
+    fetchOtherPrograms(targetSlug).then((o) => { if (active) setOthers(o); });
     return () => { active = false; };
-  }, [slug]);
+  }, [targetSlug]);
 
   if (state === 'loading' || (state === 'ready' && !program)) {
     return <Shimmer />;
@@ -77,9 +114,9 @@ export default function CourseDetailPage() {
     return (
       <div className="page-section" style={{ minHeight: '50vh', display: 'flex', alignItems: 'center' }}>
         <ErrorState
-          title="Program not found"
-          text="We could not find that learning program. It may have been unpublished or removed."
-          action={<Link to="/learning-programs" className="btn-eduact">Browse all programs</Link>}
+          title="Course not found"
+          text="We could not find that course. It may have been renamed or removed."
+          action={<Link to="/courses" className="btn-eduact">Browse all courses</Link>}
         />
       </div>
     );
@@ -88,10 +125,10 @@ export default function CourseDetailPage() {
   if (state === 'error') {
     return (
       <div className="page-section" style={{ minHeight: '50vh', display: 'flex', alignItems: 'center' }}>
-        <ErrorState title="Something went wrong" text={error} action={<Link to="/learning-programs" className="btn-eduact">Browse all programs</Link>} />
+        <ErrorState title="Something went wrong" text={error} action={<Link to="/courses" className="btn-eduact">Browse all courses</Link>} />
       </div>
     );
   }
 
-  return <ProgramTemplate program={program} otherPrograms={others} />;
+  return <ProgramTemplate program={program} otherPrograms={others} seoData={seoEntry} />;
 }

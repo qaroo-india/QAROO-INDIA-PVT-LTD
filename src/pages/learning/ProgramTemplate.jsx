@@ -49,8 +49,11 @@ function CheckList({ items, cols = 2 }) {
   );
 }
 
-export default function ProgramTemplate({ program, otherPrograms }) {
-  const path = `/learning-programs/${program.slug}`;
+export default function ProgramTemplate({ program, otherPrograms, seoData }) {
+  const isCoursePath = seoData || window.location.pathname.startsWith('/courses');
+  const path = seoData
+    ? `/courses/${seoData.canonical.split('/courses/')[1].replace(/\/$/, '')}`
+    : `/learning-programs/${program.slug}`;
   // The brochure is handed over only after the visitor has told us who they
   // are, so the button opens the form rather than the document.
   const [brochureOpen, setBrochureOpen] = useState(false);
@@ -75,9 +78,11 @@ export default function ProgramTemplate({ program, otherPrograms }) {
         <GradientBlobBackground colors={BLOB_COLORS} opacity={0.16} />
       </div>
       <Seo
-        title={program.metaTitle}
-        description={program.metaDescription}
+        title={seoData?.title || program.metaTitle}
+        description={seoData?.description || program.metaDescription}
         path={path}
+        jsonLd={seoData?.schema}
+        jsonLdId="course-schema"
       />
 
       {/* Hero */}
@@ -88,21 +93,21 @@ export default function ProgramTemplate({ program, otherPrograms }) {
             <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/' }} style={{ color: 'rgba(255,255,255,0.6)' }}>
               Home
             </Breadcrumb.Item>
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/learning-programs' }} style={{ color: 'rgba(255,255,255,0.6)' }}>
-              Learning Programs
+            <Breadcrumb.Item linkAs={Link} linkProps={{ to: isCoursePath ? '/courses' : '/learning-programs' }} style={{ color: 'rgba(255,255,255,0.6)' }}>
+              {isCoursePath ? 'Courses' : 'Learning Programs'}
             </Breadcrumb.Item>
             <Breadcrumb.Item active style={{ color: '#fff' }}>
-              {program.pageName}
+              {seoData?.breadcrumb || program.pageName}
             </Breadcrumb.Item>
           </Breadcrumb>
-          <span className="eyebrow">Learning Program</span>
+          <span className="eyebrow">{isCoursePath ? 'Course in Coimbatore' : 'Learning Program'}</span>
           <h1 style={{
             fontFamily: 'var(--heading-font)',
             fontWeight: 800,
             color: '#fff',
             fontSize: 'clamp(2rem, 4vw, 3rem)',
             marginTop: '10px',
-          }}>{program.pageName}</h1>
+          }}>{seoData?.h1 || program.pageName}</h1>
           <p style={{ color: 'rgba(255,255,255,0.75)', maxWidth: '640px', marginTop: '14px', fontSize: '16px' }}>
             {program.shortDescription}
           </p>

@@ -30,7 +30,8 @@ function categoryOf(track) {
   return 'Other';
 }
 
-export default function LearningPrograms() {
+export default function LearningPrograms({ isCourseHub }) {
+  const isCourses = isCourseHub || (typeof window !== 'undefined' && window.location.pathname.startsWith('/courses'));
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -77,22 +78,44 @@ export default function LearningPrograms() {
       ]
     : [];
 
+  const pageTitle = isCourses
+    ? 'IT Courses in Coimbatore with Placement Support | Qaroo'
+    : 'Learning Programs & Career Tracks - Qaroo India Private Limited | Data Science, Full Stack, UI/UX, Cyber Security, AI';
+  const pageDesc = isCourses
+    ? 'Data science, full stack, cyber security, AI & machine learning and UI/UX courses in Coimbatore with live projects, internships and placement support.'
+    : 'Career-ready IT learning programs from Qaroo India Private Limited: Data Science & Business Analytics, Full Stack Development, UI/UX Design, Cyber Security, AI & Machine Learning, Graphic Design and Software Testing.';
+  const pageH1 = isCourses
+    ? 'IT Courses in Coimbatore'
+    : (content.heading || 'Skills that move your career forward.');
+  const pagePath = isCourses ? '/courses' : '/learning-programs';
+
+  const courseHubBreadcrumbs = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.qaroo.in/' },
+      { '@type': 'ListItem', position: 2, name: 'Courses', item: 'https://www.qaroo.in/courses/' }
+    ]
+  };
+
   return (
     <>
       <Seo
-        title="Learning Programs & Career Tracks - Qaroo India Private Limited | Data Science, Full Stack, UI/UX, Cyber Security, AI"
-        description="Career-ready IT learning programs from Qaroo India Private Limited: Data Science & Business Analytics, Full Stack Development, UI/UX Design, Cyber Security, AI & Machine Learning, Graphic Design and Software Testing."
-        path="/learning-programs"
+        title={pageTitle}
+        description={pageDesc}
+        path={pagePath}
+        jsonLd={isCourses ? courseHubBreadcrumbs : null}
+        jsonLdId="courses-hub-schema"
       />
       <PageHero padding="80px 0 100px" facts={heroFacts}>
-        <span className="eyebrow">Learning Programs</span>
+        <span className="eyebrow">{isCourses ? 'Courses in Coimbatore' : 'Learning Programs'}</span>
         <h1 style={{
           fontFamily: 'var(--heading-font)',
           fontWeight: 800,
           color: '#fff',
           fontSize: 'clamp(2rem, 4vw, 3rem)',
           marginTop: '10px',
-        }}>{content.heading || 'Skills that move your career forward.'}</h1>
+        }}>{pageH1}</h1>
         <p style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '560px', marginTop: '14px' }}>
           {content.description || 'Practical, project-based training across technology, design and analytics - grouped by career path.'}
         </p>

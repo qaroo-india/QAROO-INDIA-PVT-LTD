@@ -16,12 +16,12 @@ import { BUSINESS_LINKS, LEARNING_LINKS } from '../data/catalog.js';
 
 const DEFAULT_HOME = {
   heroEyebrow: 'Coimbatore - Chennai',
-  heroTitle: 'Business solutions and career-ready skills, from One Team.',
+  heroTitle: 'IT Courses with Placement Support & Digital Solutions in Coimbatore',
   heroDescription:
-    'Qaroo India Private Limited builds digital solutions for businesses - CRM, marketing, design, software, strategy - and builds careers for people through practical, industry-linked training.',
+    'Job-ready IT courses with internships and placement support, plus software, CRM and digital marketing for businesses. Offices in Coimbatore and Chennai.',
   buttons: [
-    { text: 'Explore Business Solutions', link: '/business-solutions', style: 'yellow' },
-    { text: 'Explore Learning Programs', link: '/learning-programs', style: 'white' },
+    { text: 'Explore Business Solutions', link: '/services', style: 'yellow' },
+    { text: 'Explore Learning Programs', link: '/courses', style: 'white' },
   ],
   statistics: [
     { num: 20, label: 'Memorandums of Understanding (MoUs) signed' },
@@ -175,8 +175,8 @@ export default function Home() {
   return (
     <>
       <Seo
-        title="Qaroo India Private Limited - Business Solutions & Career-Ready Learning"
-        description="Qaroo India Private Limited delivers business solutions - CRM, digital marketing, design, web & software development, strategy - plus career-ready IT learning programs. Head office Coimbatore, branch office Chennai."
+        title="Qaroo India | IT Courses & Digital Solutions in Coimbatore"
+        description="Job-ready IT courses with internships and placement support, plus software, CRM and digital marketing for businesses. Offices in Coimbatore and Chennai."
         path="/"
       />
       {/* ========== HERO - deep-red stage with interactive background atoms ========== */}

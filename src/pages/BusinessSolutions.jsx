@@ -41,7 +41,8 @@ const OVERVIEW_SECTIONS = [
 const withRoadmap = (list) =>
   list.map((s) => ({ process: [], problems: [], benefits: [], ...s }));
 
-export default function BusinessSolutions() {
+export default function BusinessSolutions({ isServiceHub }) {
+  const isServices = isServiceHub || (typeof window !== 'undefined' && window.location.pathname.startsWith('/services'));
   const [services, setServices] = useState(() => withRoadmap(DEFAULT_SERVICES));
   const [errors, setErrors] = useState('');
   // The overview proposal is handed over only after the visitor has said who
@@ -145,18 +146,37 @@ export default function BusinessSolutions() {
     };
   }, [compact, carouselItems.length]);
 
+  const pageTitle = isServices
+    ? 'Software, CRM & Digital Marketing Services | Qaroo India'
+    : 'Business Solutions - Qaroo India Private Limited | CRM, Marketing, Design, Software, Strategy';
+  const pageDesc = isServices
+    ? 'Custom software, web development, CRM, UI/UX and branding, digital marketing and strategy for businesses in Coimbatore, Chennai and across India.'
+    : 'Business solutions from Qaroo India Private Limited: CRM solutions, digital marketing & SEO, graphic design & branding, web & software development, UI/UX design, UX research and business strategy.';
+  const pagePath = isServices ? '/services' : '/business-solutions';
+
+  const servicesHubBreadcrumbs = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.qaroo.in/' },
+      { '@type': 'ListItem', position: 2, name: 'Services', item: 'https://www.qaroo.in/services/' }
+    ]
+  };
+
   return (
     <div className="business-template">
       <Seo
-        title="Business Solutions - Qaroo India Private Limited | CRM, Marketing, Design, Software, Strategy"
-        description="Business solutions from Qaroo India Private Limited: CRM solutions, digital marketing & SEO, graphic design & branding, web & software development, UI/UX design, UX research and business strategy."
-        path="/business-solutions"
+        title={pageTitle}
+        description={pageDesc}
+        path={pagePath}
+        jsonLd={isServices ? servicesHubBreadcrumbs : null}
+        jsonLdId="services-hub-schema"
       />
       {/* ScrollExpand Hero */}
       <ScrollExpand
         src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80"
         alt="Modern office workspace"
-        title="Work that moves a real metric."
+        title={isServices ? 'Digital Solutions for Businesses' : 'Work that moves a real metric.'}
         scrollHint="Scroll to expand"
         useWindowScroll
         startWidth={42}

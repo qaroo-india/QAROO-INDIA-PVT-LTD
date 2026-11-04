@@ -1,4 +1,4 @@
-// Regenerates public/sitemap.xml from the project's own data files.
+// Regenerates public/sitemap.xml from the project's own data files and SEO kit definitions.
 // Run it after adding or renaming a solution, programme or vacancy:
 //   node tools/build-sitemap.mjs
 
@@ -15,24 +15,39 @@ const SITE = SITE_URL;
 const OUT = path.join(ROOT, 'public/sitemap.xml');
 
 const pages = [
+  // 15 Core SEO Kit Landing Pages
   { loc: '/', priority: '1.0', changefreq: 'weekly' },
-  { loc: '/about', priority: '0.8', changefreq: 'monthly' },
-  { loc: '/business-solutions', priority: '0.9', changefreq: 'weekly' },
-  { loc: '/learning-programs', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/courses/', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/courses/data-science-course-coimbatore/', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/courses/full-stack-developer-course-coimbatore/', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/courses/cyber-security-course-coimbatore/', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/courses/ai-machine-learning-course-coimbatore/', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/courses/ui-ux-design-course-coimbatore/', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/services/', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/services/software-web-development/', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/services/crm-solutions/', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/services/digital-marketing/', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/services/ui-ux-branding/', priority: '0.7', changefreq: 'weekly' },
+  { loc: '/services/business-strategy/', priority: '0.7', changefreq: 'weekly' },
+  { loc: '/about', priority: '0.6', changefreq: 'monthly' },
+  { loc: '/contact', priority: '0.6', changefreq: 'monthly' },
+
+  // Secondary Company and App Pages
+  { loc: '/business-solutions', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/learning-programs', priority: '0.8', changefreq: 'weekly' },
   { loc: '/csr-projects', priority: '0.7', changefreq: 'monthly' },
   { loc: '/mou-directory', priority: '0.7', changefreq: 'weekly' },
   { loc: '/careers', priority: '0.8', changefreq: 'weekly' },
-  { loc: '/contact', priority: '0.7', changefreq: 'monthly' },
   { loc: '/sitemap', priority: '0.3', changefreq: 'monthly' },
   { loc: '/privacy-policy', priority: '0.3', changefreq: 'yearly' },
   { loc: '/terms', priority: '0.3', changefreq: 'yearly' },
 ];
 
 for (const s of BUSINESS_SOLUTIONS) {
-  pages.push({ loc: `/business-solutions/${s.slug}`, priority: '0.8', changefreq: 'monthly' });
+  pages.push({ loc: `/business-solutions/${s.slug}`, priority: '0.7', changefreq: 'monthly' });
 }
 for (const p of PROGRAMS) {
-  pages.push({ loc: `/learning-programs/${p.slug}`, priority: '0.8', changefreq: 'monthly' });
+  pages.push({ loc: `/learning-programs/${p.slug}`, priority: '0.7', changefreq: 'monthly' });
 }
 for (const j of JOB_POSTINGS) {
   if (j.slug) pages.push({ loc: `/careers/${j.slug}`, priority: '0.6', changefreq: 'weekly' });
@@ -60,7 +75,3 @@ ${unique
 
 fs.writeFileSync(OUT, xml, 'utf8');
 console.log(`sitemap.xml written: ${unique.length} URLs`);
-console.log(`  static   ${unique.length - BUSINESS_SOLUTIONS.length - PROGRAMS.length - JOB_POSTINGS.filter((j) => j.slug).length}`);
-console.log(`  business ${BUSINESS_SOLUTIONS.length}`);
-console.log(`  learning ${PROGRAMS.length}`);
-console.log(`  careers  ${JOB_POSTINGS.filter((j) => j.slug).length}`);

@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import NavigationBar from './components/Navbar';
 import Footer from './components/Footer';
@@ -147,15 +147,26 @@ function App() {
             <Routes>
               <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
               <Route path="/about" element={<PageWrapper><About /></PageWrapper>} />
-              <Route path="/business-solutions" element={<PageWrapper><BusinessSolutions /></PageWrapper>} />
-              <Route path="/business-solutions/:slug" element={<PageWrapper><BusinessSolutionDetail /></PageWrapper>} />
+              <Route path="/about.html" element={<Navigate to="/about" replace />} />
+              <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
+              <Route path="/contact.html" element={<Navigate to="/contact" replace />} />
+              
+              {/* Courses - SEO Landing Hub & Pages */}
+              <Route path="/courses" element={<PageWrapper><LearningPrograms isCourseHub /></PageWrapper>} />
+              <Route path="/courses/:slug" element={<PageWrapper><CourseDetailPage /></PageWrapper>} />
               <Route path="/learning-programs" element={<PageWrapper><LearningPrograms /></PageWrapper>} />
               <Route path="/learning-programs/:slug" element={<PageWrapper><CourseDetailPage /></PageWrapper>} />
+
+              {/* Services - SEO Landing Hub & Pages */}
+              <Route path="/services" element={<PageWrapper><BusinessSolutions isServiceHub /></PageWrapper>} />
+              <Route path="/services/:slug" element={<PageWrapper><BusinessSolutionDetail /></PageWrapper>} />
+              <Route path="/business-solutions" element={<PageWrapper><BusinessSolutions /></PageWrapper>} />
+              <Route path="/business-solutions/:slug" element={<PageWrapper><BusinessSolutionDetail /></PageWrapper>} />
+
               <Route path="/csr-projects" element={<PageWrapper><CSRProjects /></PageWrapper>} />
               <Route path="/mou-directory" element={<PageWrapper><MOUDirectory /></PageWrapper>} />
               <Route path="/careers" element={<PageWrapper><Careers /></PageWrapper>} />
               <Route path="/careers/:slug" element={<PageWrapper><JobDetail /></PageWrapper>} />
-              <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
               <Route path="/privacy-policy" element={<PageWrapper><PrivacyPolicy /></PageWrapper>} />
               <Route path="/terms" element={<PageWrapper><Terms /></PageWrapper>} />
               <Route path="/sitemap" element={<PageWrapper><SitemapPage /></PageWrapper>} />

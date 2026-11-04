@@ -232,10 +232,10 @@ export default function NavigationBar() {
           <Nav className="mx-auto" style={{ gap: '4px' }}>
             {/* Business Solutions Mega Dropdown */}
             {renderDropdown('business', cfg.businessTitle,
-              location.pathname.startsWith('/business-solutions') ? 'active' : '',
+              location.pathname.startsWith('/business-solutions') || location.pathname.startsWith('/services') ? 'active' : '',
               (
                 <>
-                  <Link to="/business-solutions" className="mega-head" onClick={closeAll}>Explore All Solutions</Link>
+                  <Link to="/services" className="mega-head" onClick={closeAll}>Explore All Solutions</Link>
                   <div className="mega-grid">
                     <div>
                       {bizCol1.map((link) => (
@@ -279,10 +279,10 @@ export default function NavigationBar() {
 
             {/* Learnings Mega Dropdown */}
             {renderDropdown('learning', cfg.learningTitle,
-              location.pathname.startsWith('/learning-programs') ? 'active' : '',
+              location.pathname.startsWith('/learning-programs') || location.pathname.startsWith('/courses') ? 'active' : '',
               (
                 <>
-                  <Link to="/learning-programs" className="mega-head" onClick={closeAll}>Explore All Programs</Link>
+                  <Link to="/courses" className="mega-head" onClick={closeAll}>Explore All Programs</Link>
                   <div className="mega-grid">
                     <div>
                       {learnCol1.map((link) => (

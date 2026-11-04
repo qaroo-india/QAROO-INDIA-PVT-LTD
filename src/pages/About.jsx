@@ -87,8 +87,8 @@ export default function About() {
   return (
     <>
       <Seo
-        title="About Us - Qaroo India Private Limited | Digital Solutions & Career Training"
-        description={`Learn about Qaroo India Private Limited: our vision, mission, milestones and our impact by the numbers - ${stats[0]?.num ?? 20} MoUs signed and ${stats[1]?.num ?? 12} CSR projects delivered.`}
+        title="About Qaroo India | IT Training & Software Company"
+        description="Qaroo India builds software, brands and digital campaigns, and runs career-focused IT training: 6,000+ students trained and 20+ MoUs with organisations."
         path="/about"
       />
       {/* Header */}
@@ -100,7 +100,7 @@ export default function About() {
           color: '#fff',
           fontSize: 'clamp(2rem, 4vw, 3rem)',
           marginTop: '10px',
-        }}>Building digital solutions.<br />Building careers.</h1>
+        }}>About Qaroo India Private Limited</h1>
       </PageHero>
 
       <Container className="page-section">

@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import BusinessSolutionTemplate from './BusinessSolutionTemplate.jsx';
 import { businessSolutionApi } from '../../api/businessSolutionApi.js';
 import { Shimmer, ErrorState } from '../../components/ui/States';
+import { BUSINESS_SOLUTIONS } from '../../data/businessSolutions.js';
+import { SEO_PAGES } from '../../data/seoData.js';
 
 function toTemplate(s) {
   return {
@@ -27,14 +29,27 @@ function toTemplate(s) {
   };
 }
 
+function getLocalSolutionFallback(slug) {
+  const local = BUSINESS_SOLUTIONS.find((s) => s.slug === slug);
+  if (!local) return null;
+  return toTemplate({
+    ...local,
+    title: local.pageName,
+    shortDescription: local.shortDescription
+  });
+}
+
 async function fetchOtherSolutions(currentSlug) {
   try {
     const res = await businessSolutionApi.list({}, { credentials: 'omit' });
     const list = res?.data?.solutions || [];
-    return list.filter((s) => s.slug !== currentSlug).map(toTemplate);
+    if (list.length) {
+      return list.filter((s) => s.slug !== currentSlug).map(toTemplate);
+    }
   } catch {
-    return [];
+    // ignore
   }
+  return BUSINESS_SOLUTIONS.filter((s) => s.slug !== currentSlug).slice(0, 3).map((s) => toTemplate({ ...s, title: s.pageName }));
 }
 
 export default function BusinessSolutionDetail() {
@@ -44,29 +59,50 @@ export default function BusinessSolutionDetail() {
   const [state, setState] = useState('loading'); // loading | ready | notfound | error
   const [error, setError] = useState('');
 
+  // Determine if this is an SEO keyword service URL (/services/...) or internal slug
+  const seoEntry = SEO_PAGES[`/services/${slug}`];
+  const targetSlug = seoEntry?.internalSlug || slug;
+
   useEffect(() => {
     let active = true;
     setState('loading');
     setSolution(null);
+
     businessSolutionApi
-      .getBySlug(slug, { credentials: 'omit' })
+      .getBySlug(targetSlug, { credentials: 'omit' })
       .then((res) => {
         if (!active) return;
         const s = res?.data?.solution;
-        if (!s) { setState('notfound'); return; }
-        setSolution(toTemplate(s));
-        setState('ready');
+        if (s) {
+          setSolution(toTemplate(s));
+          setState('ready');
+        } else {
+          const fallback = getLocalSolutionFallback(targetSlug);
+          if (fallback) {
+            setSolution(fallback);
+            setState('ready');
+          } else {
+            setState('notfound');
+          }
+        }
       })
       .catch((err) => {
         if (!active) return;
-        if (err?.status === 404) { setState('notfound'); return; }
-        setError(err?.message || 'We could not load this solution. Please try again.');
-        setState('error');
+        const fallback = getLocalSolutionFallback(targetSlug);
+        if (fallback) {
+          setSolution(fallback);
+          setState('ready');
+        } else if (err?.status === 404) {
+          setState('notfound');
+        } else {
+          setError(err?.message || 'We could not load this solution. Please try again.');
+          setState('error');
+        }
       });
 
-    fetchOtherSolutions(slug).then((o) => { if (active) setOthers(o); });
+    fetchOtherSolutions(targetSlug).then((o) => { if (active) setOthers(o); });
     return () => { active = false; };
-  }, [slug]);
+  }, [targetSlug]);
 
   if (state === 'loading' || (state === 'ready' && !solution)) {
     return <Shimmer />;
@@ -77,8 +113,8 @@ export default function BusinessSolutionDetail() {
       <div className="page-section" style={{ minHeight: '50vh', display: 'flex', alignItems: 'center' }}>
         <ErrorState
           title="Solution not found"
-          text="We could not find that business solution. It may have been unpublished or removed."
-          action={<Link to="/business-solutions" className="btn-eduact">Browse all solutions</Link>}
+          text="We could not find that business solution. It may have been renamed or removed."
+          action={<Link to="/services" className="btn-eduact">Browse all solutions</Link>}
         />
       </div>
     );
@@ -87,10 +123,10 @@ export default function BusinessSolutionDetail() {
   if (state === 'error') {
     return (
       <div className="page-section" style={{ minHeight: '50vh', display: 'flex', alignItems: 'center' }}>
-        <ErrorState title="Something went wrong" text={error} action={<Link to="/business-solutions" className="btn-eduact">Browse all solutions</Link>} />
+        <ErrorState title="Something went wrong" text={error} action={<Link to="/services" className="btn-eduact">Browse all solutions</Link>} />
       </div>
     );
   }
 
-  return <BusinessSolutionTemplate solution={solution} otherSolutions={others} />;
+  return <BusinessSolutionTemplate solution={solution} otherSolutions={others} seoData={seoEntry} />;
 }

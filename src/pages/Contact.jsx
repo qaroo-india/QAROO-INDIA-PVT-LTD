@@ -104,8 +104,8 @@ export default function Contact() {
   return (
     <>
       <Seo
-        title="Contact Us - Qaroo India Private Limited | Coimbatore & Chennai Offices"
-        description={`Contact Qaroo India Private Limited. Head office in Coimbatore, branch office in Chennai. Call ${COMPANY.primaryPhone} or email ${COMPANY.email} for business solutions, learning programs and CSR partnerships.`}
+        title="Contact Qaroo India | Coimbatore & Chennai Offices"
+        description="Visit Qaroo at Sri Ram Towers, P.N.Palayam, Coimbatore (opp. LuLu Hypermarket) or Pallavaram, Chennai. Call +91 90439 27967 or email us."
         path="/contact"
       />
       <PageHero padding="80px 0 100px">
@@ -116,9 +116,9 @@ export default function Contact() {
           color: '#fff',
           fontSize: 'clamp(2rem, 4vw, 3rem)',
           marginTop: '10px',
-        }}>Let's start a conversation.</h1>
+        }}>Contact Qaroo India</h1>
         <p style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '560px', marginTop: '14px' }}>
-          Whether you need business solutions or want to explore learning programs, we're here to help.
+          Visit Qaroo in Coimbatore (Sri Ram Towers) or Chennai (Pallavaram). We're here to help.
         </p>
       </PageHero>
 
